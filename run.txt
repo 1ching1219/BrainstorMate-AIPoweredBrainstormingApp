@@ -1,0 +1,3 @@
+PS C:\Users\user\OneDrive\桌面\HCI+D\video_app> daphne -p 8002 -b 0.0.0.0 backend.asgi:application
+PS C:\Users\user\OneDrive\桌面\HCI+D\video_app\frontend> npm start 
+PS C:\Users\user\OneDrive\桌面\HCI+D\video_app> python manage.py runserver 8000
