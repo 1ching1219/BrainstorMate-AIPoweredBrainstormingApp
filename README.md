@@ -22,3 +22,5 @@
 - **Database**: SQLite (default for Django, can be switched to PostgreSQL or MySQL)
 - **AI Integration**: Custom AI agents (integrated via Python scripts or external APIs)
 - **Authentication**: Django Rest Framework with JWT for secure user authentication
+
+Copyright © 2025 by 1ching. All rights reserved.
