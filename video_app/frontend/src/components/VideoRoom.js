@@ -274,6 +274,7 @@ const VideoRoom = () => {
   const indexOfFirstParticipant = indexOfLastParticipant - participantsPerPage;
   const currentParticipants = humanParticipants.slice(indexOfFirstParticipant, indexOfLastParticipant);
   
+  const username = localStorage.getItem('username');
   // useEffect(() => {
   //   // Connect to the WebSocket
   //   socketRef.current = new WebSocket(`ws://localhost:8002/ws/chat/${roomId}/`);
@@ -742,7 +743,7 @@ const VideoRoom = () => {
                       {participant.id.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <ParticipantName>{participant.id} (You)</ParticipantName>
+                  <ParticipantName>{username} (You)</ParticipantName>
                 </VideoContainer>
               ) : (
                 // Peer videos
