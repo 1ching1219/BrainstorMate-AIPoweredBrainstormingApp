@@ -1,4 +1,4 @@
-# BrainstroMate - Your AI-powered Creativity Partner
+# BrainstroMate - Your AI-powered Creative Partner
 
 **BrainstroMate** is an AI-powered brainstorming tool designed to enhance creativity and productivity in online meetings. It uses React.js for the frontend and Django for the backend, providing custom AI agents (via prompt role settings) that join online meetings to assist in discussions. This tool tackles the common challenges of brainstorming sessions, such as difficulty in finding the right team members and creative stagnation during discussions.
 
