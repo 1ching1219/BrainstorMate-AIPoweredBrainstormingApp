@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -80,7 +81,9 @@ CHANNEL_LAYERS = {
 }
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# MEDIA_ROOT = BASE_DIR / 'media'
+# 上傳照片的位置
+MEDIA_ROOT = os.path.join(BASE_DIR, 'frontend', 'public', 'media')
 
 ROOT_URLCONF = 'backend.urls'
 

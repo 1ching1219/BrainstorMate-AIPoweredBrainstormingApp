@@ -1,5 +1,3 @@
-
-
 // export default SelectAIPartners;
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -256,7 +254,9 @@ const SelectAIPartners = () => {
             <AIRole>{agent.role}</AIRole>
           </AIOption>
         ))}
-        <AIOption>
+        <AIOption
+          onClick={() => navigate('/add-ai', { state: { roomId, isNewRoom } })}
+        >
           <AddButton>+</AddButton>
         </AIOption>
       </AIGrid>

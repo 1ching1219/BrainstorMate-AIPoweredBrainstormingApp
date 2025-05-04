@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.request import Request
 from django.http import HttpRequest
 from .models import AIAgent
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 
@@ -133,3 +134,21 @@ def add_participant(request, room_id):
     except Exception as e:
         print('Error adding participant:', e)
         return Response({ 'error': 'Server error' }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def save_ai_partner(request):
+    parser_classes = (MultiPartParser, FormParser)
+    role = request.data.get('role')
+    description = request.data.get('description')
+    avatar = request.FILES.get('avatar')
+
+    print('Received data:', role, description, avatar)
+
+    if not role or not description:
+        return Response({'error': 'Role and description are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        ai_agent = AIAgent.objects.create(role=role, description=description, avatar=avatar)
+        return Response({'success': True, 'ai_agent_id': ai_agent.id}, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({'error': 'Failed to save AI partner.', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

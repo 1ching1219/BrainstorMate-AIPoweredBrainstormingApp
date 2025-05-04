@@ -23,4 +23,17 @@
 - **AI Integration**: Custom AI agents (integrated via Python scripts or external APIs)
 - **Authentication**: Django Rest Framework with JWT for secure user authentication
 
-Copyright © 2025 by 1ching. All rights reserved.
+---
+
+## Enviroment Setup
+1. Download nodejs
+
+2. Run the commands 
+```bash
+pip install -r requirements.txt
+cd frontend
+npm install
+```
+npm install --legacy-peer-deps
+---
+Copyright © 2025 by 1ching & xup6sophia. All rights reserved.
