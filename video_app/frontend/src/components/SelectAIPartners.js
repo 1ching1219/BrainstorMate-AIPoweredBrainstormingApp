@@ -13,20 +13,21 @@ const Container = styled.div`
 
 const Header = styled.div`
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   margin-bottom: 24px;
 `;
 
 const BackButton = styled.button`
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 35px;
   cursor: pointer;
 `;
 
 const Title = styled.h1`
-  font-size: 24px;
-  margin-left: 12px;
+  font-size: 35px;
+  margin-left: 0px;
 `;
 
 const AIGrid = styled.div`
@@ -224,6 +225,7 @@ const SelectAIPartners = () => {
       <Container>
         <Header>
           <BackButton onClick={() => navigate('/')}>←</BackButton>
+          <br />
           <Title>Loading AI partners...</Title>
         </Header>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '50px' }}>
@@ -237,7 +239,8 @@ const SelectAIPartners = () => {
     <Container>
       <Header>
         <BackButton onClick={() => navigate('/')}>←</BackButton>
-        <Title>Select AI partners for your room</Title>
+        {/* Breakline */}
+        <Title>Select <br /> AI partners for your room</Title>
       </Header>
       
       <AIGrid>

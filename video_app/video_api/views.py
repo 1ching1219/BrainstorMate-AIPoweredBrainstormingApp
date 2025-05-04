@@ -16,7 +16,6 @@ from .models import AIAgent
 from rest_framework.parsers import MultiPartParser, FormParser
 
 
-
 class AIAgentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AIAgent.objects.all()
     serializer_class = AIAgentSerializer
@@ -135,6 +134,7 @@ def add_participant(request, room_id):
         print('Error adding participant:', e)
         return Response({ 'error': 'Server error' }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+# 新增存AI
 @api_view(['POST'])
 def save_ai_partner(request):
     parser_classes = (MultiPartParser, FormParser)

@@ -218,13 +218,13 @@ const Container = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 24px;
+  font-size: 32px;
   margin-bottom: 12px;
   text-align: center;
 `;
 
 const SubTitle = styled.h2`
-  font-size: 16px;
+  font-size: 20px;
   margin-bottom: 32px;
   text-align: center;
   font-weight: normal;
