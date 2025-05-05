@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import Peer from 'simple-peer';
 import axios from 'axios';
 import Chat from './Chat';
+import { FiVideo, FiVideoOff, FiMic, FiMicOff, FiMessageSquare, FiX } from "react-icons/fi";
 
 const VideoRoomContainer = styled.div`
   display: flex;
@@ -807,23 +808,23 @@ const VideoRoom = () => {
       
       <ControlBar>
         <ChatButton onClick={() => setShowChat(!showChat)}>
-          <span role="img" aria-label="chat">💬</span>
+          <span role="img" aria-label="chat"><FiMessageSquare /></span>
         </ChatButton>
         
         <ControlButton onClick={toggleAudio}>
           <span role="img" aria-label="microphone">
-            {audioEnabled ? '🎙️' : '🔇'}
+            {audioEnabled ? <FiMic /> :  <FiMicOff />}
           </span>
         </ControlButton>
         
         <ControlButton onClick={toggleVideo}>
           <span role="img" aria-label="camera">
-            {videoEnabled ? '📹' : '🚫'}
+            {videoEnabled ?  <FiVideo /> :  <FiVideoOff />}
           </span>
         </ControlButton>
         
         <ControlButton danger onClick={leaveRoom}>
-          <span role="img" aria-label="hang up">❌</span>
+          <span role="img" aria-label="hang up"><FiX /></span>
         </ControlButton>
       </ControlBar>
       

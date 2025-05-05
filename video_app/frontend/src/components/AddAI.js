@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
+import { FiImage, FiCheck } from "react-icons/fi";
 
 // an app page that allows users create their own AI agents
 // Components needed: Header, AI Role (let user set the Role of their AI agent), AI description(Let user set the description)
@@ -199,7 +200,7 @@ const AddAI = () => {
       <Form>
         <ImageInputContainer>
           <ImagePlaceholder onClick={() => document.getElementById('fileInput').click()}>
-            {aiAvatar ? '✔️' : '📷'}
+            {aiAvatar ? <FiCheck size={40} /> : <FiImage size={40} />}
           </ImagePlaceholder>
           <HiddenFileInput
             id="fileInput"

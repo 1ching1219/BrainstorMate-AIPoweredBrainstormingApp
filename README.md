@@ -32,8 +32,10 @@
 ```bash
 pip install -r requirements.txt
 cd frontend
-npm install
-```
 npm install --legacy-peer-deps
+# To download icon package
+npm install react-icons --save --legacy-peer-deps
+```
+
 ---
 Copyright © 2025 by 1ching & xup6sophia. All rights reserved.
