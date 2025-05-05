@@ -10,8 +10,7 @@ import {
   Alert,
   SafeAreaView
 } from 'react-native';
-import axios from 'axios';
-import { addParticipant } from '../utils/database';
+import { getAIAgents, addParticipant } from '../services/api';
 import { fonts } from '../config/fonts';
 
 // Import AI avatars
@@ -21,19 +20,12 @@ const financeAvatar = require('../../assets/ai/finance.png');
 const professorAvatar = require('../../assets/ai/professor.png');
 
 const SelectAIPartners = ({ navigation, route }) => {
-  const [aiAgents, setAiAgents] = useState([
-    { id: 1, role: 'Designer', avatar: designerAvatar },
-    { id: 2, role: 'Engineer', avatar: engineerAvatar },
-    { id: 3, role: 'Finance', avatar: financeAvatar },
-    { id: 4, role: 'Professor', avatar: professorAvatar }
-  ]);
+  const [aiAgents, setAiAgents] = useState([]);
   const [selectedAgents, setSelectedAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPage, setLoadingPage] = useState(true);
   
-//   const { roomId, isNewRoom } = route.params;
-  const roomId = '1234567890';
-  const isNewRoom = true;
+  const { roomId, isNewRoom } = route.params;
   
   useEffect(() => {
     // Redirect if room ID is missing
@@ -46,16 +38,17 @@ const SelectAIPartners = ({ navigation, route }) => {
     // If not a new room, redirect to VideoRoom
     if (!isNewRoom) {
       navigation.navigate('VideoRoom', { roomId });
+      // navigation.navigate('Home', { roomId });
       return;
     }
     
     // Fetch AI agents from backend
     const fetchAIAgents = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/ai-agents/');
-        if (response.data.length > 0) {
+        const agents = await getAIAgents();
+        if (agents.length > 0) {
           // Map the backend data to include our local avatars
-          const updatedAgents = response.data.map(agent => ({
+          const updatedAgents = agents.map(agent => ({
             ...agent,
             avatar: {
               1: designerAvatar,
@@ -68,6 +61,7 @@ const SelectAIPartners = ({ navigation, route }) => {
         }
       } catch (error) {
         console.error('Error fetching AI agents:', error);
+        Alert.alert('Error', 'Failed to load AI agents. Please try again.');
       } finally {
         setLoadingPage(false);
       }
@@ -96,28 +90,15 @@ const SelectAIPartners = ({ navigation, route }) => {
     try {
       console.log(`Setting up room ${roomId} with selected AI partners`);
       
-      // Format selected AI partners
-      const aiPartners = selectedAgents.map(agent => ({
-        id: agent.id,
-        name: agent.role,
-        role: agent.role,
-        avatar: agent.avatar
-      }));
-      
-      // Save the selected AI partners to the database for this room
-      await axios.post(`http://localhost:8000/api/rooms/${roomId}/ai-partners/`, {
-        aiPartners: aiPartners
-      });
-      
-      // Add AI partners to local database
-      for (const partner of aiPartners) {
-        await addParticipant(roomId, partner.name, true);
+      // Add AI partners to the room
+      for (const agent of selectedAgents) {
+        await addParticipant(roomId, agent.name, true);
       }
       
-      // Navigate to the room with AI partners as params
+      // Navigate to the room
       navigation.navigate('VideoRoom', {
         roomId,
-        aiPartners
+        aiPartners: selectedAgents
       });
     } catch (error) {
       console.error('Error saving AI partners or starting room:', error);
@@ -146,7 +127,7 @@ const SelectAIPartners = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Select AI partners for your room</Text>

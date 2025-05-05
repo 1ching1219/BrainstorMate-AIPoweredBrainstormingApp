@@ -12,141 +12,112 @@ import {
   ScrollView
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import axios from 'axios';
+import { createAIAgent } from '../services/api';
 import { fonts } from '../config/fonts';
 
 const AddAI = ({ navigation, route }) => {
-  const [aiRole, setAiRole] = useState('');
-  const [aiDescription, setAiDescription] = useState('');
-  const [aiAvatar, setAiAvatar] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  // const { roomId, isNewRoom } = route.params;
-  const roomId = '1234567890';
-  const isNewRoom = true;
+  const [role, setRole] = useState('');
+  const [description, setDescription] = useState('');
+  const [avatar, setAvatar] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { roomId, isNewRoom } = route.params;
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permissions to upload an image.');
-      return;
-    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-
-    if (!result.canceled) {
-      setAiAvatar(result.assets[0].uri);
+      if (!result.canceled) {
+        setAvatar(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
-  };
-
-  const validateFields = () => {
-    if (!aiRole.trim()) {
-      Alert.alert('Error', 'AI Role is required.');
-      return false;
-    }
-    if (!aiDescription.trim()) {
-      Alert.alert('Error', 'AI Description is required.');
-      return false;
-    }
-    if (!aiAvatar) {
-      Alert.alert('Error', 'AI Avatar is required.');
-      return false;
-    }
-    return true;
   };
 
   const handleSave = async () => {
-    if (!validateFields()) return;
+    if (!role.trim() || !description.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
 
-    setIsSaving(true);
+    setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('role', aiRole);
-      formData.append('description', aiDescription);
+      // Create AI agent in backend
+      await createAIAgent(role, description, avatar);
       
-      // Convert the image URI to a blob
-      const response = await fetch(aiAvatar);
-      const blob = await response.blob();
-      formData.append('avatar', blob, 'avatar.jpg');
-
-      const saveResponse = await axios.post('http://localhost:8000/api/save-ai/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (saveResponse.status === 200) {
-        Alert.alert('Success', 'AI agent created successfully!');
-        navigation.navigate('SelectAIPartners', { roomId, isNewRoom });
-      }
+      // Navigate back to SelectAIPartners
+      navigation.navigate('SelectAIPartners', { roomId, isNewRoom });
     } catch (error) {
-      console.error('Error saving AI:', error);
-      Alert.alert('Error', 'Failed to save AI agent. Please try again.');
+      console.error('Error creating AI agent:', error);
+      Alert.alert('Error', 'Failed to create AI agent. Please try again.');
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
-  };
-
-  const handleBack = () => {
-    navigation.navigate('SelectAIPartners', { roomId, isNewRoom });
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Add new AI partner</Text>
+        <Text style={styles.title}>Add New AI Partner</Text>
       </View>
 
       <ScrollView style={styles.form}>
         <View style={styles.imageContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.imagePlaceholder}
             onPress={pickImage}
           >
-            {aiAvatar ? (
-              <Image source={{ uri: aiAvatar }} style={styles.image} />
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.image} />
             ) : (
               <Text style={styles.imagePlaceholderText}>+</Text>
             )}
           </TouchableOpacity>
+          <Text style={styles.imageLabel}>Add Avatar</Text>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Role</Text>
           <TextInput
             style={styles.input}
-            placeholder="Name the Role"
-            value={aiRole}
-            onChangeText={setAiRole}
+            value={role}
+            onChangeText={setRole}
+            placeholder="Enter AI partner role"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Specialize</Text>
+          <Text style={styles.label}>Description</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="This AI is going to be... For example: Gender/Tone/Character..."
-            value={aiDescription}
-            onChangeText={setAiDescription}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Enter AI partner description"
             multiline
-            numberOfLines={6}
-            textAlignVertical="top"
+            numberOfLines={4}
           />
         </View>
 
         <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.disabledButton]}
+          style={[styles.saveButton, isLoading && styles.disabledButton]}
           onPress={handleSave}
-          disabled={isSaving}
+          disabled={isLoading}
         >
-          {isSaving ? (
+          {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>Save AI Partner</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -160,75 +131,81 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    padding: 12,
-    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    fontSize: 35,
+    fontSize: 24,
+    marginRight: 16,
     fontFamily: fonts.inriaSans.bold,
-    marginBottom: 8,
   },
   title: {
     fontSize: 24,
     fontFamily: fonts.jaro.regular,
   },
   form: {
-    padding: 12,
+    flex: 1,
+    padding: 20,
   },
   imageContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   imagePlaceholder: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 8,
+    width: 120,
+    height: 120,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-  },
-  imagePlaceholderText: {
-    fontSize: 24,
-    fontFamily: fonts.inriaSans.bold,
-    color: '#888',
+    marginBottom: 10,
   },
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 8,
+    borderRadius: 60,
+  },
+  imagePlaceholderText: {
+    fontSize: 40,
+    color: '#999',
+  },
+  imageLabel: {
+    fontSize: 16,
+    fontFamily: fonts.inriaSans.regular,
+    color: '#666',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontFamily: fonts.inriaSans.bold,
+    marginBottom: 8,
   },
   input: {
-    flex: 1,
-    padding: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
     borderRadius: 8,
+    padding: 12,
     fontSize: 16,
     fontFamily: fonts.inriaSans.regular,
   },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    marginBottom: 8,
-    fontFamily: fonts.inriaSans.bold,
-  },
   textArea: {
-    height: 150,
+    height: 100,
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: 'gray',
+    backgroundColor: '#2a70e0',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 20,
   },
   disabledButton: {
-    opacity: 0.7,
+    backgroundColor: '#ccc',
   },
   saveButtonText: {
     color: '#fff',

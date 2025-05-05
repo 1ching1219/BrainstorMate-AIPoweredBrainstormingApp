@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-19!4n!j-kwggypv#f=975admvkmv3awwjub-^qbo1ezr0bsmi!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app']
 
 
 INSTALLED_APPS = [
@@ -56,8 +56,9 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8001",
-    "http://localhost:8000",
+    'http://localhost:8001',
+    'http://localhost:8000',
+    'https://*.ngrok-free.app'
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 

@@ -15,6 +15,7 @@ urlpatterns = [
     path('rooms/<str:room_id>/participants', views.add_participant),
     path('ai-agents/', views.list_ai_agents),
     path('save-ai/', views.save_ai_partner, name='save-ai-partners'),
+    path('rooms/<str:room_id>/', views.get_room, name='get-room'),
 ]
 
 

@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import { Asset } from 'expo-asset';
+import { Platform } from 'react-native';
 
 // Function to copy the existing database
 const copyDatabase = async () => {
@@ -38,34 +39,118 @@ const copyDatabase = async () => {
   return dbPath;
 };
 
-// Open the database
-let db;
-const initDatabase = async () => {
-  try {
-    const dbPath = await copyDatabase();
-    db = SQLite.openDatabase(dbPath);
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Error initializing database:', error);
-    throw error;
+// Get the database path
+const getDatabasePath = () => {
+  if (Platform.OS === 'web') {
+    return null;
   }
+  return `${FileSystem.documentDirectory}SQLite/brainstormmate.db`;
+};
+
+// Open database connection
+const openDatabase = () => {
+  if (Platform.OS === "web") {
+    return {
+      transaction: () => {
+        return {
+          executeSql: () => {},
+        };
+      },
+    };
+  }
+
+  // Create SQLite directory if it doesn't exist
+  const dbPath = getDatabasePath();
+  if (dbPath) {
+    const dirPath = dbPath.substring(0, dbPath.lastIndexOf('/'));
+    FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+  }
+
+  const db = SQLite.openDatabase("brainstormmate.db");
+  return db;
+};
+
+// Initialize database tables
+export const initDatabase = async () => {
+  const db = openDatabase();
+  
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      // Create rooms table
+      tx.executeSql(
+        `CREATE TABLE IF NOT EXISTS rooms (
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          is_active INTEGER DEFAULT 1
+        );`
+      );
+
+      // Create participants table
+      tx.executeSql(
+        `CREATE TABLE IF NOT EXISTS participants (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          room_id TEXT,
+          name TEXT,
+          is_ai INTEGER DEFAULT 0,
+          joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (room_id) REFERENCES rooms (id)
+        );`
+      );
+
+      // Create messages table
+      tx.executeSql(
+        `CREATE TABLE IF NOT EXISTS messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          room_id TEXT,
+          sender TEXT,
+          content TEXT,
+          is_ai INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (room_id) REFERENCES rooms (id)
+        );`
+      );
+
+      // Create ai_agents table
+      tx.executeSql(
+        `CREATE TABLE IF NOT EXISTS ai_agents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          role TEXT,
+          avatar TEXT,
+          description TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );`
+      );
+    }, 
+    (error) => {
+      console.error('Error creating database tables:', error);
+      reject(error);
+    },
+    () => {
+      console.log('Database tables created successfully');
+      resolve();
+    });
+  });
 };
 
 // Room operations
-const createRoom = (name) => {
+export const addRoom = (roomId, roomName) => {
+  const db = openDatabase();
   return new Promise((resolve, reject) => {
     db.transaction(tx => {
       tx.executeSql(
-        'INSERT INTO rooms (name) VALUES (?)',
-        [name],
-        (_, result) => resolve(result.insertId),
+        'INSERT INTO rooms (id, name) VALUES (?, ?)',
+        [roomId, roomName],
+        (_, result) => resolve(result),
         (_, error) => reject(error)
       );
     });
   });
 };
 
-const getRoom = (roomId) => {
+export const getRoom = (roomId) => {
+  const db = openDatabase();
   return new Promise((resolve, reject) => {
     db.transaction(tx => {
       tx.executeSql(
@@ -79,20 +164,22 @@ const getRoom = (roomId) => {
 };
 
 // Participant operations
-const addParticipant = (roomId, name, isAi = false) => {
+export const addParticipant = (roomId, name, isAI = false) => {
+  const db = openDatabase();
   return new Promise((resolve, reject) => {
     db.transaction(tx => {
       tx.executeSql(
         'INSERT INTO participants (room_id, name, is_ai) VALUES (?, ?, ?)',
-        [roomId, name, isAi ? 1 : 0],
-        (_, result) => resolve(result.insertId),
+        [roomId, name, isAI ? 1 : 0],
+        (_, result) => resolve(result),
         (_, error) => reject(error)
       );
     });
   });
 };
 
-const getParticipants = (roomId) => {
+export const getParticipants = (roomId) => {
+  const db = openDatabase();
   return new Promise((resolve, reject) => {
     db.transaction(tx => {
       tx.executeSql(
@@ -106,28 +193,26 @@ const getParticipants = (roomId) => {
 };
 
 // Message operations
-const addMessage = (roomId, senderId, content) => {
+export const addMessage = (roomId, sender, content, isAI = false) => {
+  const db = openDatabase();
   return new Promise((resolve, reject) => {
     db.transaction(tx => {
       tx.executeSql(
-        'INSERT INTO messages (room_id, sender_id, content) VALUES (?, ?, ?)',
-        [roomId, senderId, content],
-        (_, result) => resolve(result.insertId),
+        'INSERT INTO messages (room_id, sender, content, is_ai) VALUES (?, ?, ?, ?)',
+        [roomId, sender, content, isAI ? 1 : 0],
+        (_, result) => resolve(result),
         (_, error) => reject(error)
       );
     });
   });
 };
 
-const getMessages = (roomId) => {
+export const getMessages = (roomId) => {
+  const db = openDatabase();
   return new Promise((resolve, reject) => {
     db.transaction(tx => {
       tx.executeSql(
-        `SELECT m.*, p.name as sender_name 
-         FROM messages m 
-         JOIN participants p ON m.sender_id = p.id 
-         WHERE m.room_id = ? 
-         ORDER BY m.created_at ASC`,
+        'SELECT * FROM messages WHERE room_id = ? ORDER BY created_at ASC',
         [roomId],
         (_, { rows: { _array } }) => resolve(_array),
         (_, error) => reject(error)
@@ -136,12 +221,44 @@ const getMessages = (roomId) => {
   });
 };
 
-export {
-  initDatabase,
-  createRoom,
-  getRoom,
-  addParticipant,
-  getParticipants,
-  addMessage,
-  getMessages
+// AI Agent operations
+export const addAIAgent = (name, role, avatar, description) => {
+  const db = openDatabase();
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        'INSERT INTO ai_agents (name, role, avatar, description) VALUES (?, ?, ?, ?)',
+        [name, role, avatar, description],
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+};
+
+export const getAIAgents = () => {
+  const db = openDatabase();
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        'SELECT * FROM ai_agents',
+        [],
+        (_, { rows: { _array } }) => resolve(_array),
+        (_, error) => reject(error)
+      );
+    });
+  });
+};
+
+// Cleanup operations
+export const clearDatabase = () => {
+  const db = openDatabase();
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      tx.executeSql('DELETE FROM messages');
+      tx.executeSql('DELETE FROM participants');
+      tx.executeSql('DELETE FROM rooms');
+      tx.executeSql('DELETE FROM ai_agents');
+    }, reject, resolve);
+  });
 }; 

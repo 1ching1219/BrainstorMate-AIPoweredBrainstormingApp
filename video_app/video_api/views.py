@@ -152,3 +152,12 @@ def save_ai_partner(request):
         return Response({'success': True, 'ai_agent_id': ai_agent.id}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'error': 'Failed to save AI partner.', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def get_room(request, room_id):
+    try:
+        room = Room.objects.get(room_id=room_id)
+        serializer = RoomSerializer(room)
+        return Response(serializer.data)
+    except Room.DoesNotExist:
+        return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)

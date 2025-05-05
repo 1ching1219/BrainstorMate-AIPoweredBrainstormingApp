@@ -40,14 +40,20 @@ npm install react-icons --save --legacy-peer-deps
 ## Expo
 - Simply put, our original implementation is using React.js (WebBased); but Expo needs React Native Framework(AppBased), so restructured and re-coded the expo-frontend
 - Is at Expo-testing branch 
-- DBconnection still not working yet(not quite sure is it because the firewall of my pc, and my phone fail to connect)
+- VideoConferencing not implemented yet.
 - [Guide](https://docs.expo.dev/more/expo-cli/)
 ```bash
 cd expo_frontend
 npm install --legacy-peer-deps
 # To run
-npx expo start
+npx expo start --tunnel
 ```
+To connect with the db, use ngrok to listen
+and place ngrok link at video_app\expo_frontend\src\services\api.js
+[ngrok](https://dashboard.ngrok.com/get-started/setup/windows)
+also run backend django server
+both two port should be the same 
+
 
 ---
 Copyright © 2025 by 1ching & xup6sophia. All rights reserved.

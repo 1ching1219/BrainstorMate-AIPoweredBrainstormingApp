@@ -11,8 +11,11 @@ import { fonts } from '../config/fonts';
 const Home = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>BrainstorMate</Text>
-      <Text style={styles.subtitle}>Your AI-powered creativity partner.</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>BrainstorMate</Text>
+        <Text style={styles.subtitle}>Your AI-powered creativity partner.</Text>
+      </View>
+      
       <View style={styles.buttonsContainer}>
         <TouchableOpacity
           style={styles.actionButton}
@@ -20,6 +23,7 @@ const Home = ({ navigation }) => {
         >
           <Text style={styles.actionButtonText}>Create a New Room</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={() => navigation.navigate('JoinRoom')}
@@ -38,6 +42,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
   },
   title: {
     fontSize: 35,
