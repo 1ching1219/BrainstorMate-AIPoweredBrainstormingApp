@@ -36,6 +36,18 @@ npm install --legacy-peer-deps
 # To download icon package
 npm install react-icons --save --legacy-peer-deps
 ```
+---
+## Expo
+- Simply put, our original implementation is using React.js (WebBased); but Expo needs React Native Framework(AppBased), so restructured and re-coded the expo-frontend
+- Is at Expo-testing branch 
+- DBconnection still not working yet(not quite sure is it because the firewall of my pc, and my phone fail to connect)
+- [Guide](https://docs.expo.dev/more/expo-cli/)
+```bash
+cd expo_frontend
+npm install --legacy-peer-deps
+# To run
+npx expo start
+```
 
 ---
 Copyright © 2025 by 1ching & xup6sophia. All rights reserved.
