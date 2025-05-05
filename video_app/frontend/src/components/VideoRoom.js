@@ -1,52 +1,74 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import Peer from 'simple-peer';
 import axios from 'axios';
-import Chat from './Chat';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { FiVideo, FiVideoOff, FiMic, FiMicOff, FiMessageSquare, FiX } from "react-icons/fi";
+import Chat from './Chat';
 
+// Responsive container with flexbox that changes direction based on screen size
 const VideoRoomContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100%;
   position: relative;
+  overflow: hidden;
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 12px 16px;
+  padding: clamp(8px, 2vw, 16px);
   border-bottom: 1px solid #e0e0e0;
+  min-height: 48px;
 `;
 
 const RoomTitle = styled.h2`
   margin: 0;
-  font-size: 16px;
+  font-size: clamp(14px, 4vw, 18px);
   font-weight: 600;
 `;
 
+// Content container that changes direction based on screen size
 const ContentContainer = styled.div`
   display: flex;
-  flex-direction: column;
   flex: 1;
   overflow: hidden;
+  
+  /* Mobile: stack vertically */
+  flex-direction: column;
+  
+  /* Tablet/Desktop: side by side */
+  @media (min-width: 768px) {
+    flex-direction: row;
+  }
 `;
 
-// AI Feedback Section
+// AI Feedback Section 
 const FeedbackSection = styled.div`
-  height: 50%; /* Increased from 40% to 50% */
-  overflow-y: auto;
-  padding: 16px;
   background-color: #fff;
-  border-bottom: 2px solid #2a70e0; // Added visible divider
+  overflow-y: auto;
+  
+  /* Mobile: take 50% height and full width */
+  height: 50%;
+  width: 100%;
+  padding: clamp(8px, 2vw, 16px);
+  border-bottom: 2px solid #2a70e0;
+  
+  /* Tablet/Desktop: take 50% width and full height */
+  @media (min-width: 768px) {
+    width: 50%;
+    height: 100%;
+    border-bottom: none;
+    border-right: 2px solid #2a70e0;
+  }
 `;
 
 const FeedbackHeader = styled.h3`
   margin: 0 0 16px 0;
-  font-size: 14px;
+  font-size: clamp(12px, 3vw, 16px);
   font-weight: 600;
   color: #2a70e0;
 `;
@@ -57,15 +79,16 @@ const FeedbackItem = styled.div`
 `;
 
 const Avatar = styled.div`
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
+  width: clamp(32px, 8vw, 40px);
+  height: clamp(32px, 8vw, 40px);
+  border-radius: 50%;
   background-color: #e0e0e0;
   margin-right: 12px;
   overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-shrink: 0;
 `;
 
 const AvatarImage = styled.img`
@@ -76,36 +99,45 @@ const AvatarImage = styled.img`
 
 const FeedbackContent = styled.div`
   flex: 1;
+  min-width: 0; /* Prevent text overflow in flex items */
 `;
 
 const AgentName = styled.div`
   font-weight: 600;
-  font-size: 14px;
+  font-size: clamp(12px, 3vw, 14px);
   margin-bottom: 4px;
 `;
 
 const FeedbackText = styled.div`
-  font-size: 14px;
+  font-size: clamp(12px, 3vw, 14px);
+  word-wrap: break-word;
 `;
 
 // Human Video Section
 const VideoSection = styled.div`
-  height: 50%; 
   background-color: #f5f5f5;
   position: relative;
-  padding: 10px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  
+  /* Mobile: take 50% height and full width */
+  height: 50%;
+  width: 100%;
+  padding: clamp(8px, 2vw, 16px);
+  
+  /* Tablet/Desktop: take 50% width and full height */
+  @media (min-width: 768px) {
+    width: 50%;
+    height: 100%;
+  }
 `;
-
-
 
 const VideoGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 16px;
+  gap: clamp(8px, 2vw, 16px);
   flex: 1;
   position: relative;
 `;
@@ -135,14 +167,14 @@ const ParticipantName = styled.div`
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: clamp(10px, 2.5vw, 12px);
 `;
 
 // Navigation buttons for pagination
 const PaginationControls = styled.div`
   display: flex;
   justify-content: center;
-  margin-top: 10px;
+  margin-top: clamp(5px, 1.5vw, 10px);
 `;
 
 const PageButton = styled.button`
@@ -150,8 +182,8 @@ const PageButton = styled.button`
   color: ${props => props.active ? 'white' : '#333'};
   border: none;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: clamp(24px, 6vw, 30px);
+  height: clamp(24px, 6vw, 30px);
   margin: 0 5px;
   cursor: pointer;
   display: flex;
@@ -167,8 +199,8 @@ const NavButton = styled.button`
   background-color: #f0f0f0;
   border: none;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: clamp(24px, 6vw, 30px);
+  height: clamp(24px, 6vw, 30px);
   margin: 0 5px;
   cursor: pointer;
   display: flex;
@@ -188,31 +220,32 @@ const NavButton = styled.button`
 // Self video container
 const SelfVideoContainer = styled.div`
   position: absolute;
-  bottom: 70px; // Position above control bar
+  bottom: 70px;
   right: 10px;
-  width: 180px; // Smaller size
+  width: clamp(120px, 25vw, 180px);
   border-radius: 8px;
   overflow: hidden;
   aspect-ratio: 4/3;
   background-color: #000;
   z-index: 10;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  display: ${props => props.visible ? 'block' : 'none'}; // Hide when video is off
+  display: ${props => props.visible ? 'block' : 'none'};
 `;
 
 const ControlBar = styled.div`
   display: flex;
   justify-content: center;
-  padding: 16px;
+  padding: clamp(8px, 2vw, 16px);
   background-color: #fff;
   border-top: 1px solid #e0e0e0;
+  min-height: 48px;
 `;
 
 const ControlButton = styled.button`
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
-  margin: 0 8px;
+  width: clamp(36px, 8vw, 40px);
+  height: clamp(36px, 8vw, 40px);
+  border-radius: 50%;
+  margin: 0 clamp(4px, 1vw, 8px);
   background-color: ${props => props.danger ? '#ff4d4f' : '#f0f0f0'};
   color: ${props => props.danger ? 'white' : 'black'};
   border: none;
@@ -230,16 +263,42 @@ const ChatButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
+  width: clamp(36px, 8vw, 40px);
+  height: clamp(36px, 8vw, 40px);
+  border-radius: 50%;
   background-color: #f0f0f0;
   border: none;
   cursor: pointer;
-  margin-right: 16px;
+  margin-right: clamp(8px, 2vw, 16px);
   
   &:hover {
     background-color: #d9d9d9;
+  }
+`;
+
+// Responsive Chat Panel
+const ChatPanel = styled.div`
+  position: fixed;
+  background-color: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  
+  /* Mobile: Slide up from bottom */
+  bottom: ${props => props.show ? '0' : '-100%'};
+  left: 0;
+  width: 100%;
+  height: 70vh;
+  
+  /* Tablet/Desktop: Side panel */
+  @media (min-width: 768px) {
+    top: 0;
+    right: ${props => props.show ? '0' : '-350px'};
+    left: auto;
+    bottom: 0;
+    width: 350px;
+    height: 100%;
+    border-left: 1px solid #e0e0e0;
   }
 `;
 
@@ -276,53 +335,7 @@ const VideoRoom = () => {
   const currentParticipants = humanParticipants.slice(indexOfFirstParticipant, indexOfLastParticipant);
   
   const username = localStorage.getItem('username');
-  // useEffect(() => {
-  //   // Connect to the WebSocket
-  //   socketRef.current = new WebSocket(`ws://localhost:8002/ws/chat/${roomId}/`);
-    
-  //   // Get user media and set up connections
-  //   navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-  //     .then(stream => {
-  //       streamRef.current = stream;
-  //       if (userVideo.current) {
-  //         userVideo.current.srcObject = stream;
-  //       }
-        
-  //       // Join room
-  //       joinRoom();
-        
-  //       // Set up WebSocket handlers
-  //       setupWebSocket();
-        
-  //       // Get participants and messages
-  //       fetchParticipants();
-  //       fetchMessages();
-        
-  //       // Generate AI feedback
-  //       if (aiPartners.length > 0) {
-  //         generateAIFeedback();
-  //       }
-  //     })
-  //     .catch(error => {
-  //       console.error("Error accessing media devices:", error);
-  //       alert("Could not access camera or microphone. Please check permissions.");
-  //     });
-    
-  //   return () => {
-  //     // Clean up
-  //     if (streamRef.current) {
-  //       streamRef.current.getTracks().forEach(track => track.stop());
-  //     }
-  //     if (socketRef.current) {
-  //       socketRef.current.close();
-  //     }
-  //     peersRef.current.forEach(peer => {
-  //       if (peer.peer) {
-  //         peer.peer.destroy();
-  //       }
-  //     });
-  //   };
-  // }, [roomId, aiPartners]);
+  
   useEffect(() => {
     // Connect to the WebSocket
     socketRef.current = new WebSocket(`ws://localhost:8002/ws/chat/${roomId}/`);
@@ -364,19 +377,18 @@ const VideoRoom = () => {
         }
       });
     };
-  }, [roomId]); // ✅ 這裡只依賴 roomId
+  }, [roomId]);
   
   useEffect(() => {
     if (aiPartners.length > 0) {
-      // 加個延遲，避免頻繁觸發
+      // Add delay to avoid frequent triggering
       const timeout = setTimeout(() => {
         generateAIFeedback();
-      }, 5000); // 5秒後才出現AI feedback
+      }, 5000); // 5 seconds delay before AI feedback appears
   
       return () => clearTimeout(timeout);
     }
-  }, [aiPartners]); // ✅ 這裡只依賴 aiPartners
-  
+  }, [aiPartners]);
   
   const joinRoom = async () => {
     try {
@@ -576,9 +588,7 @@ const VideoRoom = () => {
         
         // Also send to chat
         if (socketRef.current) {
-
           if (socketRef.current.readyState === WebSocket.OPEN) {
-            
             try {
               socketRef.current.send(JSON.stringify({
                 type: 'message',
@@ -588,17 +598,12 @@ const VideoRoom = () => {
                 message_type: 'feedback'
               }));
             } catch (error) {
-              console.log('error')
               console.log("Error sending message:", error);
-              // Optionally try to reconnect or handle the failure
             }
           } else {
-            console.log('error')
             console.log("WebSocket is not open. ReadyState:", socketRef.current.readyState);
-            // Optionally handle reconnect logic here
           }
         }
-        
       }
     }, 15000); // Every 15 seconds
     
@@ -716,7 +721,6 @@ const VideoRoom = () => {
         
         {/* Human Video Section */}
         <VideoSection>
-          
           <VideoGrid>
             {currentParticipants.map((participant, index) => (
               participant.isCurrentUser ? (
@@ -738,7 +742,7 @@ const VideoRoom = () => {
                       alignItems: 'center',
                       backgroundColor: '#333',
                       color: 'white',
-                      fontSize: '24px',
+                      fontSize: 'clamp(16px, 4vw, 24px)',
                       fontWeight: 'bold'
                     }}>
                       {participant.id.charAt(0).toUpperCase()}
@@ -771,7 +775,8 @@ const VideoRoom = () => {
                   justifyContent: 'center', 
                   alignItems: 'center', 
                   height: '100%',
-                  color: '#999' 
+                  color: '#999',
+                  fontSize: 'clamp(12px, 3vw, 14px)'
                 }}>
                   Empty Slot
                 </div>
@@ -801,34 +806,35 @@ const VideoRoom = () => {
               </NavButton>
             </PaginationControls>
           )}
-          
-          {/* Removed the floating SelfVideo container as we're showing the user in the grid */}
         </VideoSection>
       </ContentContainer>
       
       <ControlBar>
         <ChatButton onClick={() => setShowChat(!showChat)}>
-          <span role="img" aria-label="chat"><FiMessageSquare /></span>
+          <FiMessageSquare size={`clamp(16px, 4vw, 20px)`} />
         </ChatButton>
         
         <ControlButton onClick={toggleAudio}>
-          <span role="img" aria-label="microphone">
-            {audioEnabled ? <FiMic /> :  <FiMicOff />}
-          </span>
+          {audioEnabled ? 
+            <FiMic size={`clamp(16px, 4vw, 20px)`} /> : 
+            <FiMicOff size={`clamp(16px, 4vw, 20px)`} />
+          }
         </ControlButton>
         
         <ControlButton onClick={toggleVideo}>
-          <span role="img" aria-label="camera">
-            {videoEnabled ?  <FiVideo /> :  <FiVideoOff />}
-          </span>
+          {videoEnabled ? 
+            <FiVideo size={`clamp(16px, 4vw, 20px)`} /> : 
+            <FiVideoOff size={`clamp(16px, 4vw, 20px)`} />
+          }
         </ControlButton>
         
         <ControlButton danger onClick={leaveRoom}>
-          <span role="img" aria-label="hang up"><FiX /></span>
+          <FiX size={`clamp(16px, 4vw, 20px)`} />
         </ControlButton>
       </ControlBar>
       
-      {showChat && (
+      {/* Responsive Chat Panel */}
+      <ChatPanel show={showChat}>
         <Chat 
           messages={messages} 
           onSendMessage={sendMessage} 
@@ -836,7 +842,7 @@ const VideoRoom = () => {
           roomId={roomId}
           socket={socketRef.current}
         />
-      )}
+      </ChatPanel>
     </VideoRoomContainer>
   );
 };
