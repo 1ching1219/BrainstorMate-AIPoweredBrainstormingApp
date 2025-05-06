@@ -3,9 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { FiImage, FiCheck } from "react-icons/fi";
 
-// an app page that allows users create their own AI agents
-// Components needed: Header, AI Role (let user set the Role of their AI agent), AI description(Let user set the description)
-
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -40,8 +37,21 @@ const Form = styled.div`
 
 const ImageInputContainer = styled.div`
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const InputRow = styled.div`
+  display: flex;
+  align-items: flex-start;
   gap: 16px;
+`;
+
+const FormRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
 `;
 
 const ImagePlaceholder = styled.div`
@@ -56,6 +66,7 @@ const ImagePlaceholder = styled.div`
   color: #888;
   cursor: pointer;
   position: relative;
+  aspect-ratio: 1/1;
 `;
 
 const HiddenFileInput = styled.input`
@@ -92,10 +103,35 @@ const SaveButton = styled.button`
   }
 `;
 
-const ErrorText = styled.p`
-  color: red;
+const ErrorMessage = styled.div`
+  color: #d32f2f;
   font-size: 14px;
-  margin: 0;
+  padding: 8px 12px;
+  margin-top: 4px;
+  background-color: rgba(211, 47, 47, 0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  
+  &:before {
+    content: "!";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #d32f2f;
+    color: white;
+    font-weight: bold;
+    margin-right: 8px;
+  }
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 `;
 
 const Label = styled.label`
@@ -135,6 +171,8 @@ const AddAI = () => {
     const file = event.target.files[0];
     if (file) {
       setAiAvatar(file);
+      // Clear error when file is selected
+      setErrors(prev => ({ ...prev, aiAvatar: undefined }));
     }
   };
 
@@ -198,34 +236,50 @@ const AddAI = () => {
         <Title>Add <br />new AI partner</Title>
       </Header>
       <Form>
-        <ImageInputContainer>
-          <ImagePlaceholder onClick={() => document.getElementById('fileInput').click()}>
-            {aiAvatar ? <FiCheck size={40} /> : <FiImage size={40} />}
-          </ImagePlaceholder>
-          <HiddenFileInput
-            id="fileInput"
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-          />
-          {errors.aiAvatar && <ErrorText>{errors.aiAvatar}</ErrorText>}
-          <Input
-            type="text"
-            placeholder="Name the Role"
-            value={aiRole}
-            onChange={(e) => setAiRole(e.target.value)}
-          />
-          {errors.aiRole && <ErrorText>{errors.aiRole}</ErrorText>}
-        </ImageInputContainer>
-        <div>
+        <FormRow>
+          <InputRow>
+            <ImagePlaceholder onClick={() => document.getElementById('fileInput').click()}>
+              {aiAvatar ? <FiCheck size={40} /> : <FiImage size={40} />}
+            </ImagePlaceholder>
+            <HiddenFileInput
+              id="fileInput"
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+            />
+            <FormGroup>
+              <Input
+                type="text"
+                placeholder="Name the Role"
+                value={aiRole}
+                onChange={(e) => {
+                  setAiRole(e.target.value);
+                  if (e.target.value.trim()) {
+                    setErrors(prev => ({ ...prev, aiRole: undefined }));
+                  }
+                }}
+              />
+            </FormGroup>
+          </InputRow>
+          {errors.aiAvatar && <ErrorMessage>{errors.aiAvatar}</ErrorMessage>}
+          {errors.aiRole && <ErrorMessage>{errors.aiRole}</ErrorMessage>}
+        </FormRow>
+        
+        <FormGroup>
           <Label>Specialize</Label>
           <TextArea
             placeholder="This AI is going to be... For example: Gender/Tone/Character..."
             value={aiDescription}
-            onChange={(e) => setAiDescription(e.target.value)}
+            onChange={(e) => {
+              setAiDescription(e.target.value);
+              if (e.target.value.trim()) {
+                setErrors(prev => ({ ...prev, aiDescription: undefined }));
+              }
+            }}
           />
-          {errors.aiDescription && <ErrorText>{errors.aiDescription}</ErrorText>}
-        </div>
+          {errors.aiDescription && <ErrorMessage>{errors.aiDescription}</ErrorMessage>}
+        </FormGroup>
+        
         <SaveButton onClick={handleSave}>Save</SaveButton>
       </Form>
     </Container>
