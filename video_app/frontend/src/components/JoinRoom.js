@@ -189,30 +189,6 @@ const JoinRoom = () => {
       } finally {
         setIsJoining(false);
       }
-      
-      
-    // try {
-    //   // Check if room exists and fetch AI partners in one step
-    //   const response = await axios.get(`http://localhost:8001/api/rooms/${roomId}/ai-partners`);
-      
-    //   // If we get here, the room exists
-    //   // Retrieve the AI partners that are already associated with this room
-    //   const aiPartners = response.data.aiPartners || [];
-      
-    //   // Navigate directly to the room with the AI partners
-    //   navigate(`/room/${roomId}`, {
-    //     state: { aiPartners: aiPartners }
-    //   });
-    // } catch (error) {
-    //   console.error("Error joining room:", error);
-    //   if (error.response && error.response.status === 404) {
-    //     setError("Room not found. Please check the room ID and try again.");
-    //   } else {
-    //     setError("Failed to join room. Please try again later.");
-    //   }
-    // } finally {
-    //   setIsJoining(false);
-    // }
   };
   
   return (

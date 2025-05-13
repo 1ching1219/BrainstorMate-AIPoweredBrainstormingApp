@@ -1,101 +1,175 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator,
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
-  ActivityIndicator
+  ScrollView
 } from 'react-native';
-import axios from 'axios';
-import { addParticipant } from '../utils/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
+import { joinRoom, getAIPartners } from '../services/api';
 import { fonts } from '../config/fonts';
 
+/**
+ * JoinRoom component - Screen to join an existing room (Expo version)
+ */
 const JoinRoom = ({ navigation }) => {
   const [name, setName] = useState('');
   const [roomId, setRoomId] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const [error, setError] = useState('');
+
+  // Load username from AsyncStorage on component mount
+  useEffect(() => {
+    const loadUsername = async () => {
+      try {
+        const savedName = await AsyncStorage.getItem('username');
+        if (savedName) {
+          setName(savedName);
+        }
+      } catch (error) {
+        console.error('Error loading username from storage:', error);
+      }
+    };
+
+    loadUsername();
+  }, []);
 
   const handleJoin = async () => {
-    if (!name) {
-      Alert.alert('Error', 'Please enter your name');
+    setError('');
+    
+    // Save user name to AsyncStorage
+    if (name) {
+      try {
+        await AsyncStorage.setItem('username', name);
+      } catch (e) {
+        console.error('Error saving username:', e);
+      }
+    } else {
+      setError("Please enter your name");
       return;
     }
     
     if (!roomId) {
-      Alert.alert('Error', 'Please enter a room ID');
+      setError("Please enter a room ID");
       return;
     }
     
     setIsJoining(true);
-    
     try {
-      // Check if room exists
-      const response = await axios.get(`http://localhost:8000/api/rooms/${roomId}/participants`);
+      // Generate a unique user ID (in a real app, you might want a more robust solution)
+      const userId = `user_${Date.now()}`;
       
-      // Add user as a participant in the local database
-      await addParticipant(roomId, name, false);
+      // Join the room
+      await joinRoom(roomId, name, userId);
       
-      // Navigate to AI partner selection with isNewRoom flag
-      navigation.navigate('SelectAIPartners', { roomId, isNewRoom: false });
+      // Get AI partners for the room
+      const aiResponse = await getAIPartners(roomId);
+      const aiPartners = aiResponse.aiPartners || [];
+      
+      // Navigate to the room screen with AI partners data
+      navigation.navigate('VideoRoom', {
+        roomId: roomId,
+        aiPartners: aiPartners,
+        userName: name,
+        userId: userId
+      });
+      
     } catch (error) {
-      console.error("Error verifying room:", error);
-      if (error.response && error.response.status === 404) {
-        Alert.alert('Error', 'Room not found. Please check the room ID and try again.');
+      console.error("Error joining room:", error);
+      
+      if (error.response) {
+        if (error.response.status === 404) {
+          setError("Room not found. Please check the room ID and try again.");
+        } else if (error.response.status === 400) {
+          setError("Failed to join room: " + (error.response.data?.message || JSON.stringify(error.response.data)));
+        } else {
+          setError("Failed to join room. Please try again later.");
+        }
       } else {
-        Alert.alert('Error', 'Failed to join room. Please try again later.');
+        setError("Network error. Please check your connection and try again.");
       }
     } finally {
       setIsJoining(false);
     }
   };
-
+  
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
+      <StatusBar style="auto" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
+      >
+        <ScrollView contentContainerStyle={styles.scrollView}>
           <Text style={styles.title}>Join a Room</Text>
-          <Text style={styles.subtitle}>Connect with your team</Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Your Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="none"
-            />
+          <Text style={styles.subtitle}>Enter a room ID to join an existing session</Text>
+          
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Your Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your name"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Room ID</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter room ID to join"
+                value={roomId}
+                onChangeText={setRoomId}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+            
+            <TouchableOpacity
+              style={[
+                styles.button,
+                (!name || !roomId || isJoining) && styles.buttonDisabled
+              ]}
+              onPress={handleJoin}
+              disabled={!name || !roomId || isJoining}
+            >
+              {isJoining ? (
+                <View style={styles.buttonContent}>
+                  <Text style={styles.buttonText}>Joining...</Text>
+                  <ActivityIndicator size="small" color="#fff" style={styles.spinner} />
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>Join Room</Text>
+              )}
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Room ID</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter room ID to join"
-              value={roomId}
-              onChangeText={setRoomId}
-              autoCapitalize="none"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, isJoining && styles.buttonDisabled]}
-            onPress={handleJoin}
-            disabled={!name || !roomId || isJoining}
+          
+          <TouchableOpacity 
+            style={styles.backLink}
+            onPress={() => navigation.navigate('Home')}
           >
-            {isJoining ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Join Room</Text>
-            )}
+            <Text style={styles.backLinkText}>← Back to Home</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -105,27 +179,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  content: {
+  keyboardAvoidingView: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'center',
   },
-  header: {
-    marginBottom: 40,
-    alignItems: 'center',
+  scrollView: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontFamily: fonts.jaro.regular,
-    color: '#000',
     marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    fontFamily: fonts.inriaSans.regular,
-    color: '#666',
+    fontSize: 18,
+    marginBottom: 32,
+    fontFamily: fonts.inriaSans.bold,
     textAlign: 'center',
+    color: '#666',
   },
   form: {
     width: '100%',
@@ -138,9 +211,9 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    marginBottom: 8,
     fontFamily: fonts.inriaSans.bold,
-    color: '#333',
+    marginBottom: 8,
+    fontWeight: '500',
   },
   input: {
     width: '100%',
@@ -149,24 +222,53 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderRadius: 8,
     fontSize: 16,
-    fontFamily: fonts.inriaSans.regular,
-    backgroundColor: '#f5f5f5',
   },
   button: {
+    padding: 12,
     backgroundColor: 'gray',
-    padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonDisabled: {
-    opacity: 0.7,
+    backgroundColor: '#cccccc',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: 'white',
     fontSize: 16,
+    fontFamily: fonts.inriaSans.bold,
+    fontWeight: '500',
+  },
+  spinner: {
+    marginLeft: 8,
+  },
+  backLink: {
+    marginTop: 24,
+    alignSelf: 'center',
+  },
+  backLinkText: {
+    color: 'gray',
+    fontSize: 14,
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    flex: 1,
     fontFamily: fonts.inriaSans.bold,
   },
 });
 
-export default JoinRoom; 
+export default JoinRoom;

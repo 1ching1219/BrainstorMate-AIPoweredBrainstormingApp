@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'ngroklink-place-here/api';
+const BASE_URL = 'https://fc14-2001-b400-e254-e7a8-fd1c-3782-f237-2012.ngrok-free.app/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -26,10 +26,11 @@ export const getRoom = async (roomId) => {
 };
 
 // Participant operations
-export const addParticipant = async (roomId, name, isAI) => {
-  const response = await api.post(`/rooms/${roomId}/participants/`, {
+export const addParticipant = async (roomId, name, userId) => {
+  // Updated to match the backend expectation with userId instead of isAI
+  const response = await api.post(`/rooms/${roomId}/participants`, {
     name,
-    is_ai: isAI
+    userId
   });
   return response.data;
 };
@@ -39,8 +40,26 @@ export const getParticipants = async (roomId) => {
   return response.data;
 };
 
+// Join room operation
+export const joinRoom = async (roomId, name, userId, aiAgentId = null) => {
+  const data = {
+    name,
+    userId,
+    is_ai: false
+  };
+  
+  if (aiAgentId) {
+    data.ai_agent = aiAgentId;
+  }
+  
+  const response = await api.post(`/rooms/${roomId}/join/`, data);
+  return response.data;
+};
+
 // Message operations
 export const sendMessage = async (roomId, sender, content, isAI = false) => {
+  // Note: The backend doesn't seem to have a direct endpoint for sending messages
+  // You may need to adjust your backend or this function
   const response = await api.post(`/rooms/${roomId}/messages/`, {
     sender,
     content,
@@ -54,7 +73,7 @@ export const getMessages = async (roomId) => {
   return response.data;
 };
 
-// AI Agent operations
+// AI Agent/Partner operations
 export const getAIAgents = async () => {
   const response = await api.get('/ai-agents/');
   return response.data;
@@ -66,11 +85,7 @@ export const createAIAgent = async (role, description, avatar) => {
     formData.append('role', role);
     formData.append('description', description);
     if (avatar) {
-      formData.append('avatar', {
-        uri: avatar,
-        type: 'image/jpeg',
-        name: 'avatar.jpg'
-      });
+      formData.append('avatar', avatar);
     }
     
     const response = await api.post('/save-ai/', formData, {
@@ -85,7 +100,22 @@ export const createAIAgent = async (role, description, avatar) => {
   }
 };
 
+// AI Partners for a specific room
+export const getAIPartners = async (roomId) => {
+  const response = await api.get(`/rooms/${roomId}/ai-partners/`);
+  return response.data;
+};
+
+export const setAIPartners = async (roomId, aiPartners) => {
+  const response = await api.post(`/rooms/${roomId}/ai-partners/`, {
+    aiPartners
+  });
+  return response.data;
+};
+
 // WebSocket connection for real-time updates
 export const getWebSocketUrl = (roomId) => {
-  return `wss://${BASE_URL.split('://')[1]}/ws/rooms/${roomId}/`;
-}; 
+  // Extract the domain from BASE_URL without the http/https protocol
+  const domain = BASE_URL.split('://')[1];
+  return `wss://${domain}/ws/rooms/${roomId}/`;
+};

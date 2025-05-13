@@ -10,7 +10,7 @@ import {
   Alert,
   SafeAreaView
 } from 'react-native';
-import { getAIAgents, addParticipant } from '../services/api';
+import { getAIAgents, setAIPartners } from '../services/api';
 import { fonts } from '../config/fonts';
 
 // Import AI avatars
@@ -38,7 +38,6 @@ const SelectAIPartners = ({ navigation, route }) => {
     // If not a new room, redirect to VideoRoom
     if (!isNewRoom) {
       navigation.navigate('VideoRoom', { roomId });
-      // navigation.navigate('Home', { roomId });
       return;
     }
     
@@ -90,10 +89,16 @@ const SelectAIPartners = ({ navigation, route }) => {
     try {
       console.log(`Setting up room ${roomId} with selected AI partners`);
       
-      // Add AI partners to the room
-      for (const agent of selectedAgents) {
-        await addParticipant(roomId, agent.name, true);
-      }
+      // Format selected AI partners to match what the backend expects
+      const aiPartners = selectedAgents.map(agent => ({
+        id: agent.id,
+        name: agent.role,
+        role: agent.role,
+        avatar: agent.avatar
+      }));
+      
+      // Set all AI partners at once with one API call
+      await setAIPartners(roomId, aiPartners);
       
       // Navigate to the room
       navigation.navigate('VideoRoom', {
@@ -184,6 +189,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     marginBottom: 24,
@@ -207,7 +214,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    padding: 8,
+    padding: 30,
   },
   aiOption: {
     width: '48%',
@@ -220,8 +227,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(197, 152, 54, 0.1)',
   },
   aiAvatar: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     backgroundColor: '#e0e0e0',
     borderRadius: 10,
     marginBottom: 8,
@@ -244,7 +251,8 @@ const styles = StyleSheet.create({
   },
   startButton: {
     padding: 12,
-    backgroundColor: '#007aff',
+    width:'50%',
+    backgroundColor: 'gray',
     borderRadius: 24,
     alignItems: 'center',
     marginTop: 16,
@@ -281,4 +289,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SelectAIPartners; 
+export default SelectAIPartners;
