@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { FiMic, FiMicOff, FiMessageSquare, FiX } from 'react-icons/fi';
+import { FiMic, FiMicOff, FiX } from 'react-icons/fi';
 
 const VoiceModeContainer = styled.div`
   display: flex;
@@ -69,6 +69,55 @@ const SpeakerName = styled.p`
   font-weight: 500;
   margin: 0;
   text-align: center;
+`;
+
+// Replace ParticipantsBar with a grid:
+const ParticipantsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 12px;
+  padding: 20px;
+  background-color: #2f3136;
+  flex-shrink: 0;
+  max-height: 300px;
+  overflow-y: auto;
+
+  /* two columns on small screens */
+  @media (max-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+`;
+
+const Participant = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10px;
+  color: white;
+  opacity: ${props => (props.active ? 1 : 0.6)};
+`;
+
+const ParticipantAvatar = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #7289da;
+  overflow: hidden;
+  border: ${props => (props.active ? '2px solid white' : 'none')};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  span {
+    font-size: 14px;
+    color: white;
+  }
 `;
 
 const ControlsArea = styled.div`
@@ -192,8 +241,30 @@ const VoiceMode = () => {
         <SpeakerName>{currentSpeaker.name}</SpeakerName>
       </SpeakerArea>
 
+      {/* ← switch to grid layout: */}
+      <ParticipantsGrid>
+        {participants.map(p => {
+          const isActive = p.name === currentSpeaker.name;
+          return (
+            <Participant key={p.name} active={isActive}>
+              <ParticipantAvatar active={isActive}>
+                {p.avatarImg
+                  ? <img src={p.avatarImg} alt={p.name}/>
+                  : <span>{p.name.charAt(0).toUpperCase()}</span>
+                }
+              </ParticipantAvatar>
+              <span>{p.name}</span>
+            </Participant>
+          );
+        })}
+      </ParticipantsGrid>
+
       <ControlsArea>
-        <ControlButton onClick={toggleMic} active={isMicOn} aria-label={isMicOn ? "Mute microphone" : "Unmute microphone"}>
+        <ControlButton
+          onClick={toggleMic}
+          active={isMicOn}
+          aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+        >
           {isMicOn ? <FiMic /> : <FiMicOff />}
         </ControlButton>
         <ControlButton onClick={navigateToChat} aria-label="Open chat mode">

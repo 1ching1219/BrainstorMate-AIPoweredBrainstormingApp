@@ -17,9 +17,6 @@ import { StatusBar } from 'expo-status-bar';
 import { joinRoom, getAIPartners } from '../services/api';
 import { fonts } from '../config/fonts';
 
-/**
- * JoinRoom component - Screen to join an existing room (Expo version)
- */
 const JoinRoom = ({ navigation }) => {
   const [name, setName] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -75,7 +72,7 @@ const JoinRoom = ({ navigation }) => {
       const aiPartners = aiResponse.aiPartners || [];
       
       // Navigate to the room screen with AI partners data
-      navigation.navigate('VideoRoom', {
+      navigation.navigate('ChatRoom', {
         roomId: roomId,
         aiPartners: aiPartners,
         userName: name,

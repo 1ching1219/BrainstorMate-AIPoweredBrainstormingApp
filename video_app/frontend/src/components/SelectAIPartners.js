@@ -172,14 +172,12 @@ const SelectAIPartners = () => {
   };
   
   const handleStart = async () => {
-    // Check if roomId exists
     if (!roomId) {
       console.error('Room ID is missing');
       alert('Cannot create room, missing room ID');
       return;
     }
     
-    // Check identity - try both possible keys to get username
     const username = localStorage.getItem('username') || localStorage.getItem('userName');
     
     if (!username) {
@@ -194,23 +192,41 @@ const SelectAIPartners = () => {
     try {
       console.log(`Setting up room ${roomId} with selected AI partners`);
       
-      // Format selected AI partners
-      const aiPartners = selectedAgents.map(agent => ({
-        id: agent.id,
-        name: agent.role,
-        role: agent.role,
-        avatar: agent.avatar
-      }));
+      // First, join the room as a human participant
+      await axios.post(`/api/rooms/${roomId}/join/`, {
+        name: username,
+        is_ai: false
+      });
+
+      // Then, for each selected AI agent, create a room participant
+      for (const agent of selectedAgents) {
+        await axios.post(`/api/rooms/${roomId}/join/`, {
+          name: agent.role,
+          is_ai: true,
+          ai_agent: agent.id,
+          role: agent.role
+        });
+      }
       
-      // Save the selected AI partners to the database for this room
-      await axios.post(`http://localhost:8001/api/rooms/${roomId}/ai-partners/`, {
-        aiPartners: aiPartners
+      // Save the selected AI partners to the room's ai_partners field
+      await axios.post(`/api/rooms/${roomId}/ai-partners/`, {
+        aiPartners: selectedAgents.map(agent => ({
+          id: agent.id,
+          name: agent.role,
+          role: agent.role,
+          avatar: agent.avatar
+        }))
       });
       
       // Navigate to the room with AI partners as state
       navigate(`/room/${roomId}`, {
         state: {
-          aiPartners: aiPartners
+          aiPartners: selectedAgents.map(agent => ({
+            id: agent.id,
+            name: agent.role,
+            role: agent.role,
+            avatar: agent.avatar
+          }))
         }
       });
     } catch (error) {
@@ -220,6 +236,11 @@ const SelectAIPartners = () => {
     }
   };
   
+  const handleMockupStart = () => {
+    // For mockup purposes, just navigate to the chat room
+    navigate('/chat-mockup', { state: { roomId, aiPartners: selectedAgents } });
+  }
+
   if (loadingPage) {
     return (
       <Container>

@@ -9,6 +9,8 @@ import JoinRoom from './components/JoinRoom';
 import AddAI from './components/AddAI';
 import ChatRoom from './components/ChatRoom';
 import VoiceMode from './components/VoiceMode';
+import ChatMockup from './components/ChatRoom_Mockup'; // Mockup component for testing
+import VoiceMockup from './components/VoiceMode_Mockup'; // Mockup component for testing
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
         {/* <Route path="/room/:roomId" element={<VideoRoom />} /> */}
         <Route path="/room/:roomId" element={<ChatRoom />} />
         <Route path="/voice-mode/:roomId" element={<VoiceMode />} />
+        <Route path="/chat-mockup" element={<ChatMockup />} />
+        <Route path="/voice-mockup" element={<VoiceMockup />} />
       </Routes>
     </Router>
   );

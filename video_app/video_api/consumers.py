@@ -56,22 +56,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
             pass
 
     async def handle_chat_message(self, data):
-        message = data['message']
-        sender = data['sender']
+        # pull text from either 'message' or 'content'
+        msg_text = data.get('message') or data.get('content')
+        if msg_text is None:
+            # nothing to do if no payload
+            return
+
+        sender = data.get('sender', 'unknown')
         is_ai = data.get('is_ai', False)
 
-        # Save message to database
-        await self.save_message(sender, message, is_ai)
+        # now save and broadcast with the normalized text
+        await self.save_message(sender, msg_text, is_ai)
 
-        # Send message to room group
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                'type': 'chat_message',
-                'message': message,
+                'type': 'chat.message',
                 'sender': sender,
+                'message': msg_text,
                 'is_ai': is_ai,
-                'message_type': 'chat'
             }
         )
 
@@ -79,8 +82,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not is_ai:
             ai_agents = await self.get_room_ai_agents()
             for agent in ai_agents:
-                if agent['name'] and agent['role'] and (message.lower().find(agent['name'].lower()) != -1 or message.find('?') != -1):
-                    asyncio.create_task(self.send_ai_response(agent, message))
+                if agent['name'] and agent['role'] and (msg_text.lower().find(agent['name'].lower()) != -1 or msg_text.find('?') != -1):
+                    asyncio.create_task(self.send_ai_response(agent, msg_text))
 
     async def handle_signal(self, data):
         # Handle WebRTC signaling

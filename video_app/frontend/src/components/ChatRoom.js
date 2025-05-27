@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { FiMessageSquare, FiX } from "react-icons/fi";
 import { RiVoiceprintLine } from "react-icons/ri";
+import { RxExit } from "react-icons/rx";
 
 const ChatRoomContainer = styled.div`
   display: flex;
@@ -35,8 +36,8 @@ const ControlButton = styled.button`
   width: 42px; /* MODIFIED: Set fixed width */
   height: 42px; /* MODIFIED: Set fixed height */
   border-radius: 50%;
-  background-color: ${props => props.danger ? '#ff4d4f' : '#f0f0f0'};
-  color: ${props => props.danger ? 'white' : 'black'};
+  background-color: ${props => props.danger ? 'white' : '#f0f0f0'};
+  color: ${props => props.danger ? 'black' : 'black'};
   border: none;
   cursor: pointer;
   display: flex;
@@ -285,8 +286,7 @@ const ChatRoom = () => {
       // Initialize AI feedback generation
       const feedbackInterval = setInterval(() => {
         generateAIFeedback();
-      }, 15000); // Generate AI feedback every 15 seconds
-      
+      }, 5000); // Generate AI feedback every 15 seconds
       return () => clearInterval(feedbackInterval);
     }
   }, [aiPartners, roomId]);
@@ -486,10 +486,8 @@ const ChatRoom = () => {
     navigate(`/voice-mode/${roomId}`, { state: location.state });
   };
 
-  const sendMessage = () => {
-    if (!inputMessage.trim()) { // Keep this check in sendMessage for safety, though UI prevents it
-      return;
-    }
+  const sendMessage = async () => {
+    if (!inputMessage.trim()) return;
     
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
       setMessages(prev => [...prev, {
@@ -504,6 +502,7 @@ const ChatRoom = () => {
     }
     
     try {
+      // First send the user's message
       const messageObj = {
         type: 'message',
         message: inputMessage,
@@ -513,13 +512,57 @@ const ChatRoom = () => {
       };
       
       socketRef.current.send(JSON.stringify(messageObj));
-      setInputMessage('');
       
-    } catch (error) {
-      console.error('Error sending message:', error);
+      // Add user's message to the chat immediately
       setMessages(prev => [...prev, {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        content: "Failed to send message",
+        sender: userName,
+        content: inputMessage,
+        is_ai: false,
+        created_at: new Date().toISOString()
+      }]);
+      
+      // Clear input immediately for better UX
+      setInputMessage('');
+      
+      // Then get AI responses
+      const res = await axios.post(`/api/rooms/${roomId}/ai_respond/`, {
+        message: {
+          sender: userName,
+          content: inputMessage
+        }
+      });
+      
+      // Add all AI responses to chat
+      if (res.data && Array.isArray(res.data)) {
+        res.data.forEach(aiResponse => {
+          setMessages(prev => [...prev, {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            sender: aiResponse.sender,
+            content: aiResponse.message,
+            is_ai: true,
+            created_at: new Date().toISOString()
+          }]);
+        });
+      }
+      
+    } catch (err) {
+      console.error("Error in sendMessage:", err);
+      let errorMessage = "Error getting AI responses";
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        if (err.response.status === 404) {
+          errorMessage = "Room not found. Please refresh the page.";
+        } else if (err.response.data && err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+      }
+      
+      setMessages(prev => [...prev, {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        content: errorMessage,
         is_system: true,
         created_at: new Date().toISOString()
       }]);
@@ -625,7 +668,7 @@ const ChatRoom = () => {
           Room {roomId}
         </RoomTitle>
         <ControlButton danger onClick={leaveRoom} style={{ marginLeft: '10px' }}> {/* Added marginLeft for spacing */}
-            <FiX size={`clamp(16px, 4vw, 20px)`} />
+            <RxExit size={`clamp(16px, 4vw, 20px)`} />
         </ControlButton>
       </Header>
       

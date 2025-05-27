@@ -35,9 +35,9 @@ const SelectAIPartners = ({ navigation, route }) => {
       return;
     }
     
-    // If not a new room, redirect to VideoRoom
+    // If not a new room, redirect to ChatRoom
     if (!isNewRoom) {
-      navigation.navigate('VideoRoom', { roomId });
+      navigation.navigate('ChatRoom', { roomId });
       return;
     }
     
@@ -96,14 +96,10 @@ const SelectAIPartners = ({ navigation, route }) => {
         role: agent.role,
         avatar: agent.avatar
       }));
-      
-      // Set all AI partners at once with one API call
       await setAIPartners(roomId, aiPartners);
-      
-      // Navigate to the room
-      navigation.navigate('VideoRoom', {
+      navigation.navigate('ChatRoom', {
         roomId,
-        aiPartners: selectedAgents
+        aiPartners: aiPartners
       });
     } catch (error) {
       console.error('Error saving AI partners or starting room:', error);

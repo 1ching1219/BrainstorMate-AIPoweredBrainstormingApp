@@ -1,5 +1,5 @@
 from django.shortcuts import render
-
+import openai
 
 # Create your views here.
 # video_api/views.py
@@ -12,9 +12,9 @@ from .serializers import AIAgentSerializer, RoomSerializer, RoomParticipantSeria
 from django.shortcuts import get_object_or_404
 from rest_framework.request import Request
 from django.http import HttpRequest
-from .models import AIAgent
 from rest_framework.parsers import MultiPartParser, FormParser
 
+openai.api_key = "place the key here"  # Use env var in production!
 
 class AIAgentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AIAgent.objects.all()
@@ -64,15 +64,20 @@ def join_room(request, room_id):
 
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 def get_room_messages(request, room_id):
-    try:
-        room = Room.objects.get(room_id=room_id)
+    room = get_object_or_404(Room, room_id=room_id)
+    if request.method == 'POST':
+        serializer = MessageSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(room=room)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:  # GET
         messages = Message.objects.filter(room=room).order_by('created_at')
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
-    except Room.DoesNotExist:
-        return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
 def get_room_participants(request, room_id):
@@ -161,3 +166,96 @@ def get_room(request, room_id):
         return Response(serializer.data)
     except Room.DoesNotExist:
         return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+def ai_respond(request, room_id):
+    try:
+        print("=== Debug Info ===")
+        print(f"Room ID: {room_id}")
+        latest_message = request.data['message']
+        print(f"Latest message: {latest_message}")
+        
+        # Fetch room using string room_id
+        room = Room.objects.get(room_id=room_id)
+        print(f"Room found: {room}")
+        
+        # Get AI participants
+        ai_agents = RoomParticipant.objects.filter(room=room, is_ai=True)
+        print(f"AI participants found: {ai_agents.count()}")
+        
+        if not ai_agents.exists():
+            print("No AI participants found, checking room's ai_partners")
+            if room.ai_partners:
+                for ai_partner in room.ai_partners:
+                    try:
+                        ai_agent = AIAgent.objects.get(id=ai_partner['id'])
+                        RoomParticipant.objects.create(
+                            room=room,
+                            name=ai_partner['name'],
+                            is_ai=True,
+                            ai_agent=ai_agent
+                        )
+                    except AIAgent.DoesNotExist:
+                        print(f"AI Agent {ai_partner['id']} not found")
+                        continue
+                ai_agents = RoomParticipant.objects.filter(room=room, is_ai=True)
+        
+        responses = []
+        for participant in ai_agents:
+            try:
+                if not participant.ai_agent:
+                    print(f"Warning: Participant {participant.name} has no AI agent assigned")
+                    continue
+                    
+                ai_agent = participant.ai_agent
+                print(f"Found AI agent: {ai_agent.role}")
+                
+                # Fetch chat history
+                history = Message.objects.filter(room=room).order_by('-created_at')[:10][::-1]
+                history_text = "\n".join([f"{m.sender}: {m.content}" for m in history])
+                
+                # Compose prompt
+                prompt = (
+                    f"You are {ai_agent.role} named {participant.name}. {ai_agent.description}\n"
+                    f"Here is the recent chat history:\n{history_text}\n"
+                    f"Latest message from {latest_message['sender']}: {latest_message['content']}\n"
+                    "Respond as an expert in your field."
+                )
+                
+                # Updated OpenAI API call with new format
+                client = openai.OpenAI(api_key=openai.api_key)
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": prompt}
+                    ]
+                )
+                
+                ai_message = response.choices[0].message.content
+                
+                # Save the message to database
+                message = Message.objects.create(
+                    room=room,
+                    sender=participant.name,
+                    content=ai_message,
+                    is_ai=True
+                )
+                
+                responses.append({
+                    "message": ai_message,
+                    "sender": participant.name,
+                    "is_ai": True
+                })
+                
+            except Exception as e:
+                print(f"Error processing AI agent {participant.name}: {str(e)}")
+                continue
+            
+        return Response(responses)
+        
+    except Room.DoesNotExist:
+        print(f"Room {room_id} not found")
+        return Response({"error": "Room not found"}, status=404)
+    except Exception as e:
+        print(f"Error in ai_respond: {str(e)}")
+        return Response({"error": str(e)}, status=400)

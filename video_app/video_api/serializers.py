@@ -23,6 +23,13 @@ class RoomParticipantSerializer(serializers.ModelSerializer):
         return data
 
 class MessageSerializer(serializers.ModelSerializer):
+    # look up Room by its `room_id` string instead of numeric PK
+    room = serializers.SlugRelatedField(
+        queryset=Room.objects.all(),
+        slug_field='room_id'
+    )
+
     class Meta:
         model = Message
-        fields = '__all__'
+        fields = ('id', 'room', 'sender', 'content', 'is_ai', 'created_at')
+        read_only_fields = ('id', 'created_at')

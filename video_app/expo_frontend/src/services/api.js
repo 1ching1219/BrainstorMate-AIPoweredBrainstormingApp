@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://fc14-2001-b400-e254-e7a8-fd1c-3782-f237-2012.ngrok-free.app/api';
+const BASE_URL = 'https://0000-0000.ngrok-free.app/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -58,14 +58,16 @@ export const joinRoom = async (roomId, name, userId, aiAgentId = null) => {
 
 // Message operations
 export const sendMessage = async (roomId, sender, content, isAI = false) => {
-  // Note: The backend doesn't seem to have a direct endpoint for sending messages
-  // You may need to adjust your backend or this function
-  const response = await api.post(`/rooms/${roomId}/messages/`, {
-    sender,
-    content,
-    is_ai: isAI
-  });
-  return response.data;
+  try {
+    const response = await api.post(
+      `/rooms/${roomId}/messages/`,
+      { sender, content, is_ai: isAI, room: roomId }
+    );
+    return response.data;
+  } catch (err) {
+    console.error("sendMessage 400:", err.response?.data);
+    throw err;
+  }
 };
 
 export const getMessages = async (roomId) => {
@@ -115,7 +117,14 @@ export const setAIPartners = async (roomId, aiPartners) => {
 
 // WebSocket connection for real-time updates
 export const getWebSocketUrl = (roomId) => {
-  // Extract the domain from BASE_URL without the http/https protocol
-  const domain = BASE_URL.split('://')[1];
-  return `wss://${domain}/ws/rooms/${roomId}/`;
+  // Get the full domain including protocol
+  const url = new URL(BASE_URL);
+  
+  // Determine the WebSocket protocol based on HTTP protocol
+  const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  
+  // Return the properly formatted WebSocket URL
+  // Add 'ws' to the path to match Django Channels routing
+  return `${wsProtocol}//${url.host}/ws/chat/${roomId}/`
+  // return `${wsProtocol}//${url.host}/api/rooms/${roomId}/`;
 };
