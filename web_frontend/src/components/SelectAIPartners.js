@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import styled from 'styled-components';
-import { API_BASE_URL } from '../services/api';
+import { API_BASE_URL, API_ORIGIN } from '../services/api';
 
 const Container = styled.div`
   display: flex;
@@ -118,10 +118,10 @@ const LoadingSpinner = styled.div`
 
 const getAgentAvatarSrc = (agent) => {
   const fallbackByRole = {
-    designer: '/img/designer.png',
-    engineer: '/img/engineer.png',
-    finance: '/img/finance.png',
-    professor: '/img/default.png',
+    designer: `${API_ORIGIN}/media/avatars/designer.png`,
+    engineer: `${API_ORIGIN}/media/avatars/engineer.png`,
+    finance:  `${API_ORIGIN}/media/avatars/finance.png`,
+    professor: `${API_ORIGIN}/media/avatars/professor.png`,
   };
 
   if (agent.avatar_url) {
@@ -140,15 +140,15 @@ const getAgentAvatarSrc = (agent) => {
     return agent.avatar;
   }
 
-  return fallbackByRole[(agent.role || '').toLowerCase()] || '/img/default.png';
+  return fallbackByRole[(agent.role || '').toLowerCase()] || `${API_ORIGIN}/media/avatars/default.png`;
 };
 
 const SelectAIPartners = () => {
   const [aiAgents, setAiAgents] = useState([
-    { id: 1, role: 'Designer', avatar: '/img/designer.png' },
-    { id: 2, role: 'Engineer', avatar: '/img/engineer.png' },
-    { id: 3, role: 'Finance', avatar: '/img/finance.png' },
-    { id: 4, role: 'Professor', avatar: '/img/default.png' }
+    { id: 1, role: 'Designer', avatar_url: `${API_ORIGIN}/media/avatars/designer.png` },
+    { id: 2, role: 'Engineer', avatar_url: `${API_ORIGIN}/media/avatars/engineer.png` },
+    { id: 3, role: 'Finance',  avatar_url: `${API_ORIGIN}/media/avatars/finance.png` },
+    { id: 4, role: 'Professor', avatar_url: `${API_ORIGIN}/media/avatars/professor.png` }
   ]);
   const [selectedAgents, setSelectedAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -238,7 +238,7 @@ const SelectAIPartners = () => {
       
       // Save the selected AI partners to the database for this room
       await axios.post(`${API_BASE_URL}/rooms/${roomId}/ai-partners/`, {
-        aiPartners: aiPartners
+        aiPartners: selectedAgents
       });
       
       // Navigate to the room with AI partners as state

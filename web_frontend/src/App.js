@@ -3,7 +3,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './components/Home';
 import SelectAIPartners from './components/SelectAIPartners';
-// import VideoRoom from './components/VideoRoom';
 import CreateRoom from './components/CreateRoom';
 import JoinRoom from './components/JoinRoom';
 import AddAI from './components/AddAI';

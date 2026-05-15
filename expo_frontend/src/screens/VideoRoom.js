@@ -25,7 +25,7 @@ const AI_AVATARS = {
   designer: require('../../assets/ai/designer.png'),
   engineer: require('../../assets/ai/engineer.png'),
   finance: require('../../assets/ai/finance.png'),
-  professor: require('../../assets/ai/professor.png'),
+  professor: require('../../assets/ai/default.png'),
 };
 
 const { width, height } = Dimensions.get('window');

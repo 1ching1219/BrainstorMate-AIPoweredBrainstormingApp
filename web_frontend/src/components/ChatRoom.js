@@ -5,6 +5,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { FiMessageSquare, FiX } from "react-icons/fi";
 import { RiVoiceprintLine } from "react-icons/ri";
 import { RxExit } from "react-icons/rx";
+import { API_ORIGIN, getWebSocketUrl } from '../services/api';
 
 const ChatRoomContainer = styled.div`
   display: flex;
@@ -265,11 +266,11 @@ const ChatRoom = () => {
     fetchMessages();
     
     return () => {
-      // Clean up
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
       if (socketRef.current) {
+        socketRef.current.isIntentionalClose = true;
         socketRef.current.close();
       }
     };
@@ -280,16 +281,7 @@ const ChatRoom = () => {
     scrollToBottom();
   }, [messages]);
   
-  // Add AI participants to the room
-  useEffect(() => {
-    if (aiPartners.length > 0 && roomId) {
-      // Initialize AI feedback generation
-      const feedbackInterval = setInterval(() => {
-        generateAIFeedback();
-      }, 5000); // Generate AI feedback every 15 seconds
-      return () => clearInterval(feedbackInterval);
-    }
-  }, [aiPartners, roomId]);
+  // AI feedback is handled server-side via consumers.py
   
   const connectWebSocket = () => {
     if (reconnectAttempts.current >= maxReconnectAttempts) {
@@ -316,7 +308,7 @@ const ChatRoom = () => {
     
     // Create new WebSocket connection
     try {
-      const wsUrl = `ws://localhost:8002/ws/chat/${roomId}/`;
+      const wsUrl = getWebSocketUrl(roomId);
       console.log(`Attempting to connect to ${wsUrl}`);
       
       const newSocket = new WebSocket(wsUrl);
@@ -355,20 +347,20 @@ const ChatRoom = () => {
       };
       
       newSocket.onmessage = (event) => {
-        console.log("Received message:", event.data);
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'message') {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            setMessages(prev => {
+              const incoming = {
+                id: data.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 sender: data.sender,
                 content: data.message,
                 is_ai: data.is_ai,
-                created_at: new Date().toISOString(),
-              },
-            ]);
+                created_at: data.created_at || new Date().toISOString(),
+              };
+              if (prev.some(m => m.id === incoming.id)) return prev;
+              return [...prev, incoming];
+            });
           }
         } catch (error) {
           console.error('Error parsing message:', error);
@@ -512,57 +504,12 @@ const ChatRoom = () => {
       };
       
       socketRef.current.send(JSON.stringify(messageObj));
-      
-      // Add user's message to the chat immediately
-      setMessages(prev => [...prev, {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        sender: userName,
-        content: inputMessage,
-        is_ai: false,
-        created_at: new Date().toISOString()
-      }]);
-      
-      // Clear input immediately for better UX
       setInputMessage('');
-      
-      // Then get AI responses
-      const res = await axios.post(`/api/rooms/${roomId}/ai_respond/`, {
-        message: {
-          sender: userName,
-          content: inputMessage
-        }
-      });
-      
-      // Add all AI responses to chat
-      if (res.data && Array.isArray(res.data)) {
-        res.data.forEach(aiResponse => {
-          setMessages(prev => [...prev, {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            sender: aiResponse.sender,
-            content: aiResponse.message,
-            is_ai: true,
-            created_at: new Date().toISOString()
-          }]);
-        });
-      }
-      
     } catch (err) {
-      console.error("Error in sendMessage:", err);
-      let errorMessage = "Error getting AI responses";
-      
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        if (err.response.status === 404) {
-          errorMessage = "Room not found. Please refresh the page.";
-        } else if (err.response.data && err.response.data.error) {
-          errorMessage = err.response.data.error;
-        }
-      }
-      
+      console.error("Error sending message:", err);
       setMessages(prev => [...prev, {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        content: errorMessage,
+        content: "Failed to send message.",
         is_system: true,
         created_at: new Date().toISOString()
       }]);
@@ -693,7 +640,7 @@ const ChatRoom = () => {
                       <Avatar>
                         {isFromAI ? (
                           <img 
-                            src={`/img/${message.sender.toLowerCase()}.png`} 
+                            src={`${API_ORIGIN}/media/avatars/${message.sender.toLowerCase()}.png`} 
                             alt={message.sender} 
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                           />

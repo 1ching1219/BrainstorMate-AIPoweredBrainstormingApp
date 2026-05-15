@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FiMic, FiMicOff, FiX } from 'react-icons/fi';
+import { API_ORIGIN } from '../services/api';
 
 const VoiceModeContainer = styled.div`
   display: flex;
@@ -154,10 +155,10 @@ const ControlButton = styled.button`
 `;
 
 const ALL_PARTICIPANTS_PLACEHOLDER = [
-  { name: 'Designer', avatarImg: '/img/designer.png' },
-  { name: 'Engineer', avatarImg: '/img/engineer.png' },
-  { name: 'Finance', avatarImg: '/img/finance.png' },
-  { name: 'Professor', avatarImg: '/img/professor.png' },
+  { name: 'Designer', avatarImg: `${API_ORIGIN}/media/avatars/designer.png` },
+  { name: 'Engineer', avatarImg: `${API_ORIGIN}/media/avatars/engineer.png` },
+  { name: 'Finance',  avatarImg: `${API_ORIGIN}/media/avatars/finance.png` },
+  { name: 'Professor', avatarImg: `${API_ORIGIN}/media/avatars/professor.png` },
 ];
 
 const VoiceMode = () => {
@@ -178,7 +179,7 @@ const VoiceMode = () => {
     
     let allSpeakers = [
       { name: userName, avatarImg: null }, // User can also be a speaker
-      ...passedAiPartners.map(p => ({ name: p.name, avatarImg: `/img/${p.name.toLowerCase()}.png` }))
+      ...passedAiPartners.map(p => ({ name: p.name, avatarImg: `${API_ORIGIN}/media/avatars/${p.name.toLowerCase()}.png` }))
     ];
 
     if (allSpeakers.length <= 1 && ALL_PARTICIPANTS_PLACEHOLDER.length > 0) { // Fallback if no partners

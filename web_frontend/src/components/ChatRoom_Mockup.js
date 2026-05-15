@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiMessageSquare, FiX } from "react-icons/fi";
 import { RiVoiceprintLine } from "react-icons/ri";
 import { RxExit } from "react-icons/rx";
+import { API_ORIGIN } from '../services/api';
 
 const ChatRoom_Mockup = () => {
   const navigate = useNavigate();
@@ -18,9 +19,9 @@ const ChatRoom_Mockup = () => {
   const humanPartnerB = "B";
   
   const aiPartners = [
-    { name: 'Designer', avatarImg: '../../img/designer.png', role: 'Designer' },
-    { name: 'Engineer', avatarImg: '../../img/engineer.png', role: 'Engineer' },
-    { name: 'Marketing', avatarImg: '../../img/finance.png', role: 'Marketing' }
+    { name: 'Designer', avatarImg: '${API_ORIGIN}/media/avatars/designer.png', role: 'Designer' },
+    { name: 'Engineer', avatarImg: '${API_ORIGIN}/media/avatars/engineer.png', role: 'Engineer' },
+    { name: 'Marketing', avatarImg: '${API_ORIGIN}/media/avatars/finance.png', role: 'Marketing' }
   ];
 
   const mockupConversation = [
@@ -267,7 +268,7 @@ const ChatRoom_Mockup = () => {
                       }}>
                         {isFromAI ? (
                           <img 
-                            src={aiPartners.find(ai => ai.name === message.sender)?.avatarImg || '/img/default.png'} 
+                            src={aiPartners.find(ai => ai.name === message.sender)?.avatarImg || '/img/ai/default.png'} 
                             alt={message.sender} 
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                           />

@@ -31,6 +31,9 @@
 BrainstorMate-AIPoweredBrainstormingApp/
 ├── backend/                  # Django backend (shared by both frontends)
 │   ├── manage.py
+│   ├── requirements.txt      # Python dependencies
+│   ├── .env                  # Local env vars (copy from .env.example, not committed)
+│   ├── .env.example          # Env var template
 │   ├── backend/              # Django project settings
 │   │   ├── settings.py
 │   │   ├── asgi.py           # Channels ASGI config
@@ -41,21 +44,24 @@ BrainstorMate-AIPoweredBrainstormingApp/
 │       ├── views.py
 │       ├── consumers.py      # Channels WebSocket handler
 │       ├── routing.py        # WebSocket routes
-│       ├── ai_utils.py       # AI feedback generation
+│       ├── ai_utils.py       # AI feedback generation (template fallbacks)
 │       └── ...
 ├── web_frontend/             # React web application
 │   ├── public/
 │   ├── src/
-│   │   ├── components/       # React components (VideoRoom, Chat, etc.)
+│   │   ├── components/       # React components (ChatRoom, VoiceMode, etc.)
 │   │   └── ...
+│   ├── .env                  # Local env vars (copy from .env.example, not committed)
+│   ├── .env.example          # Env var template
 │   └── package.json
 ├── expo_frontend/            # React Native mobile app
 │   ├── src/
-│   │   ├── screens/          # Mobile screens (VideoRoom, Chat, etc.)
+│   │   ├── screens/          # Mobile screens (ChatRoomAI, VoiceModeAI, etc.)
 │   │   ├── services/         # API client (api.js)
 │   │   └── ...
+│   ├── .env                  # Local env vars (copy from .env.example, not committed)
+│   ├── .env.example          # Env var template
 │   └── package.json
-├── requirements.txt          # Python dependencies
 └── README.md
 ```
 
@@ -81,12 +87,17 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # Install Python dependencies
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # Navigate to backend directory
 cd backend
 
-# Run database migrations (creates db.sqlite3)
+# Set up environment variables
+copy .env.example .env        # Windows
+# cp .env.example .env        # macOS/Linux
+# Then edit .env and add your OPENAI_API_KEY (optional — app works without it using template responses)
+
+# Run database migrations (creates db.sqlite3 and seeds default AI agents)
 python manage.py migrate
 
 # Start backend with one unified port for REST + WebSocket (recommended)
@@ -101,6 +112,7 @@ python manage.py runserver 8000
 - Activate it **before** running any Python commands
 - The database `db.sqlite3` is created automatically in the `backend/` folder after running migrations
 - If you delete it, running migrations again will recreate it with fresh schema
+- `OPENAI_API_KEY` is optional — without it, AI agents use built-in template responses
 - To deactivate the virtual environment later, run `deactivate`
 
 ---
@@ -111,22 +123,24 @@ python manage.py runserver 8000
 # Navigate to web frontend
 cd web_frontend
 
+# Set up environment variables
+copy .env.example .env        # Windows
+# cp .env.example .env        # macOS/Linux
+# Edit .env to set REACT_APP_API_BASE_URL if your backend is not on localhost:8000
+
 # Install dependencies
 npm install --legacy-peer-deps
 
 # Install icon package (if not already installed)
 npm install react-icons --save --legacy-peer-deps
 
-# Start development server (runs on http://localhost:3000)
-# Optional: set REACT_APP_API_BASE_URL for local LAN/ngrok backend access
-# Example: set REACT_APP_API_BASE_URL=http://localhost:8000/api
-# Example: set REACT_APP_API_BASE_URL=https://your-ngrok-url.ngrok-free.app/api
+# Start development server (runs on http://localhost:8001)
 npm start
 ```
 
 **Browser Usage**: 
-- Open http://localhost:3000
-- The app reads `REACT_APP_API_BASE_URL` from the environment; if it is not set, it defaults to `http://localhost:8000/api`
+- Open http://localhost:8001
+- The app reads `REACT_APP_API_BASE_URL` from `.env`; defaults to `http://localhost:8000/api` if not set
 - The WebSocket URL is derived from the same backend base automatically
 
 ---
@@ -136,6 +150,11 @@ npm start
 ```bash
 # Navigate to expo frontend
 cd expo_frontend
+
+# Set up environment variables
+copy .env.example .env        # Windows
+# cp .env.example .env        # macOS/Linux
+# Edit .env and set EXPO_PUBLIC_API_BASE_URL to your backend address
 
 # Install dependencies
 npm install --legacy-peer-deps
@@ -148,7 +167,7 @@ npx expo start --tunnel
 ```
 
 **Configuration for Expo**:
-- Set `EXPO_PUBLIC_API_BASE_URL` before starting Expo, for example:
+- Edit `expo_frontend/.env` and set `EXPO_PUBLIC_API_BASE_URL`:
    - **Local development**: `http://localhost:8000/api`
    - **Remote/ngrok**: `https://your-ngrok-url.ngrok-free.app/api`
    - **LAN device**: `http://192.168.x.y:8000/api`
@@ -163,7 +182,7 @@ npx expo start --tunnel
 To run web and mobile clients simultaneously:
 
 1. **Backend**: Run one server on `localhost:8000` (Daphne recommended)
-2. **Web Frontend**: Run on `localhost:3000` and set `REACT_APP_API_BASE_URL` if the backend is not on the same machine
+2. **Web Frontend**: Run on `localhost:8001` and set `REACT_APP_API_BASE_URL` in `.env` if the backend is not on the same machine
 3. **Expo**: 
    - Update `EXPO_PUBLIC_API_BASE_URL` to point to your backend
    - Use ngrok or LAN IP if testing on a physical device

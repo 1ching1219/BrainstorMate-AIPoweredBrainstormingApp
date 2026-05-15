@@ -37,7 +37,7 @@ const SelectAIPartners = ({ navigation, route }) => {
     
     // If not a new room, redirect to ChatRoom
     if (!isNewRoom) {
-      navigation.navigate('ChatRoom', { roomId });
+      navigation.navigate('ChatRoomAI', { roomId });
       return;
     }
     
@@ -97,10 +97,10 @@ const SelectAIPartners = ({ navigation, route }) => {
         id: agent.id,
         name: agent.role,
         role: agent.role,
-        avatar: agent.avatar
+        avatar: agent.avatarSource || agent.avatar_url || agent.avatar
       }));
       await setAIPartners(roomId, aiPartners);
-      navigation.navigate('ChatRoom', {
+      navigation.navigate('ChatRoomAI', {
         roomId,
         aiPartners: aiPartners
       });

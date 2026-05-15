@@ -6,8 +6,10 @@ import CreateRoom from './src/screens/CreateRoom';
 import JoinRoom from './src/screens/JoinRoom';
 import SelectAIPartners from './src/screens/SelectAIPartners';
 import VoiceMode from './src/screens/VoiceMode';
+import VoiceModeAI from './src/screens/VoiceModeAI';
 import AddAI from './src/screens/AddAI';
 import ChatRoom from './src/screens/ChatRoom';
+import ChatRoomAI from './src/screens/ChatRoomAI';
 // import VideoRoom from './src/screens/VideoRoom';
 import { useFonts } from 'expo-font';
 import { fontConfig } from './src/config/fonts';
@@ -64,8 +66,18 @@ export default function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="ChatRoomAI"
+          component={ChatRoomAI}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="VoiceMode" 
           component={VoiceMode} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="VoiceModeAI"
+          component={VoiceModeAI}
           options={{ headerShown: false }}
         />
         {/* <Stack.Screen 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { FiMic, FiMicOff, FiX } from 'react-icons/fi';
+import { API_ORIGIN } from '../services/api';
 
 // Styled components matching your original code
 const VoiceModeContainer = {
@@ -89,9 +90,9 @@ const VoiceMode_Mockup = () => {
   const [currentSpeaker, setCurrentSpeaker] = useState({ name: userName, avatarImg: null });
   
   const aiPartners = [
-    { name: 'Designer', avatarImg: '../../img/designer.png', role: 'Designer' },
-    { name: 'Engineer', avatarImg: '../../img/engineer.png', role: 'Engineer' },
-    { name: 'Marketing', avatarImg: '../../img/finance.png', role: 'Marketing' }
+    { name: 'Designer', avatarImg: '${API_ORIGIN}/media/avatars/designer.png', role: 'Designer' },
+    { name: 'Engineer', avatarImg: '${API_ORIGIN}/media/avatars/engineer.png', role: 'Engineer' },
+    { name: 'Marketing', avatarImg: '${API_ORIGIN}/media/avatars/finance.png', role: 'Marketing' }
   ];
   
   const participants = [

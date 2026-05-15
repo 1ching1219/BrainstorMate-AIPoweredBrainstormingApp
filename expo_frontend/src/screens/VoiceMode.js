@@ -13,7 +13,7 @@ const getImageSource = (name) => {
     case 'designer': return require('../../assets/ai/designer.png');
     case 'engineer': return require('../../assets/ai/engineer.png');
     case 'finance': return require('../../assets/ai/finance.png');
-    case 'professor': return require('../../assets/ai/professor.png');
+    case 'professor': return require('../../assets/ai/default.png');
     default: return null;
   }
 };
@@ -23,7 +23,7 @@ const ALL_PARTICIPANTS_PLACEHOLDER = [
   { name: 'Designer', color: '#4287f5', avatarImg: require('../../assets/ai/designer.png') },
   { name: 'Engineer', color: '#f54242', avatarImg: require('../../assets/ai/engineer.png') },
   { name: 'Finance', color: '#42f560', avatarImg: require('../../assets/ai/finance.png') },
-  { name: 'Professor', color: '#f5a442', avatarImg: require('../../assets/ai/professor.png') },
+  { name: 'Professor', color: '#f5a442', avatarImg: require('../../assets/ai/default.png') },
 ];
 
 const VoiceMode = () => {
@@ -89,8 +89,8 @@ const VoiceMode = () => {
   };
 
   const navigateToChat = () => {
-    // Update the screen name to match your route configuration - 'ChatRoom' instead of 'Room'
-    navigation.navigate('ChatRoom', { 
+    const chatRoute = route.params?.aiPartners?.length ? 'ChatRoomAI' : 'ChatRoom';
+    navigation.navigate(chatRoute, { 
       roomId, 
       aiPartners: route.params?.aiPartners,
       username: route.params?.username // Pass username back

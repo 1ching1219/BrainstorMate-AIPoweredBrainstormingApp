@@ -41,7 +41,7 @@ export const getRoom = async (roomId) => {
 export const addParticipant = async (roomId, name, isAI) => {
   const response = await api.post(`/rooms/${roomId}/add-participant/`, {
     name,
-    userId
+    is_ai: isAI
   });
   return response.data;
 };
@@ -84,6 +84,19 @@ export const sendMessage = async (roomId, sender, content, isAI = false) => {
 export const getMessages = async (roomId) => {
   const response = await api.get(`/rooms/${roomId}/messages/`);
   return response.data;
+};
+
+export const triggerAIResponse = async (roomId, message, triggerType = 'user_message') => {
+  try {
+    const response = await api.post(`/rooms/${roomId}/ai_respond/`, {
+      message,
+      trigger_type: triggerType
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error triggering AI response:', error.response?.data);
+    throw error;
+  }
 };
 
 // AI Agent/Partner operations

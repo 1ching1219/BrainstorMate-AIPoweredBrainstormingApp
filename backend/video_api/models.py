@@ -43,7 +43,31 @@ class Message(models.Model):
     content = models.TextField()
     is_ai = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     def __str__(self):
         return f"{self.sender}: {self.content[:20]}..."
-    
+
+class VoiceSession(models.Model):
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='voice_sessions')
+    session_id = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True)
+    current_speaker = models.CharField(max_length=100, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_activity = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Voice Session {self.session_id} for Room {self.room.room_id}"
+
+class VoiceTurn(models.Model):
+    voice_session = models.ForeignKey(VoiceSession, on_delete=models.CASCADE, related_name='turns')
+    speaker_name = models.CharField(max_length=100)
+    is_ai = models.BooleanField(default=False)
+    ai_agent = models.ForeignKey(AIAgent, null=True, blank=True, on_delete=models.SET_NULL)
+    audio_duration = models.FloatField(null=True, blank=True)
+    transcript = models.TextField(blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.speaker_name} - {self.started_at}"
+
