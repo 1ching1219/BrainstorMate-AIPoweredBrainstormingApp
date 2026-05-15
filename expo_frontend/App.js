@@ -5,8 +5,10 @@ import Home from './src/screens/Home';
 import CreateRoom from './src/screens/CreateRoom';
 import JoinRoom from './src/screens/JoinRoom';
 import SelectAIPartners from './src/screens/SelectAIPartners';
+import VoiceMode from './src/screens/VoiceMode';
 import AddAI from './src/screens/AddAI';
-import VideoRoom from './src/screens/VideoRoom';
+import ChatRoom from './src/screens/ChatRoom';
+// import VideoRoom from './src/screens/VideoRoom';
 import { useFonts } from 'expo-font';
 import { fontConfig } from './src/config/fonts';
 import { View, ActivityIndicator } from 'react-native';
@@ -56,11 +58,21 @@ export default function App() {
           component={AddAI} 
           options={{ headerShown: false }}
         />
-        <Stack.Screen 
+        <Stack.Screen
+          name="ChatRoom" 
+          component={ChatRoom} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="VoiceMode" 
+          component={VoiceMode} 
+          options={{ headerShown: false }}
+        />
+        {/* <Stack.Screen 
           name="VideoRoom" 
           component={VideoRoom} 
           options={{ headerShown: false }}
-        />
+        /> */}
       </Stack.Navigator>
     </NavigationContainer>
   );

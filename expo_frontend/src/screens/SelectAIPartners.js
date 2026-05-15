@@ -10,7 +10,7 @@ import {
   Alert,
   SafeAreaView
 } from 'react-native';
-import { getAIAgents, addParticipant } from '../services/api';
+import { getAIAgents, setAIPartners } from '../services/api';
 import { fonts } from '../config/fonts';
 
 // Import AI avatars
@@ -35,10 +35,9 @@ const SelectAIPartners = ({ navigation, route }) => {
       return;
     }
     
-    // If not a new room, redirect to VideoRoom
+    // If not a new room, redirect to ChatRoom
     if (!isNewRoom) {
-      navigation.navigate('VideoRoom', { roomId });
-      // navigation.navigate('Home', { roomId });
+      navigation.navigate('ChatRoom', { roomId });
       return;
     }
     
@@ -93,15 +92,17 @@ const SelectAIPartners = ({ navigation, route }) => {
     try {
       console.log(`Setting up room ${roomId} with selected AI partners`);
       
-      // Add AI partners to the room
-      for (const agent of selectedAgents) {
-        await addParticipant(roomId, agent.name, true);
-      }
-      
-      // Navigate to the room
-      navigation.navigate('VideoRoom', {
+      // Format selected AI partners to match what the backend expects
+      const aiPartners = selectedAgents.map(agent => ({
+        id: agent.id,
+        name: agent.role,
+        role: agent.role,
+        avatar: agent.avatar
+      }));
+      await setAIPartners(roomId, aiPartners);
+      navigation.navigate('ChatRoom', {
         roomId,
-        aiPartners: selectedAgents
+        aiPartners: aiPartners
       });
     } catch (error) {
       console.error('Error saving AI partners or starting room:', error);
@@ -187,6 +188,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     marginBottom: 24,
@@ -210,7 +213,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    padding: 8,
+    padding: 30,
   },
   aiOption: {
     width: '48%',
@@ -223,8 +226,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(197, 152, 54, 0.1)',
   },
   aiAvatar: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     backgroundColor: '#e0e0e0',
     borderRadius: 10,
     marginBottom: 8,
@@ -247,7 +250,8 @@ const styles = StyleSheet.create({
   },
   startButton: {
     padding: 12,
-    backgroundColor: '#007aff',
+    width:'50%',
+    backgroundColor: 'gray',
     borderRadius: 24,
     alignItems: 'center',
     marginTop: 16,
@@ -284,4 +288,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SelectAIPartners; 
+export default SelectAIPartners;

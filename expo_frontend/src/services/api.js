@@ -41,7 +41,7 @@ export const getRoom = async (roomId) => {
 export const addParticipant = async (roomId, name, isAI) => {
   const response = await api.post(`/rooms/${roomId}/add-participant/`, {
     name,
-    is_ai: isAI
+    userId
   });
   return response.data;
 };
@@ -51,14 +51,34 @@ export const getParticipants = async (roomId) => {
   return response.data;
 };
 
+// Join room operation
+export const joinRoom = async (roomId, name, userId, aiAgentId = null) => {
+  const data = {
+    name,
+    userId,
+    is_ai: false
+  };
+  
+  if (aiAgentId) {
+    data.ai_agent = aiAgentId;
+  }
+  
+  const response = await api.post(`/rooms/${roomId}/join/`, data);
+  return response.data;
+};
+
 // Message operations
 export const sendMessage = async (roomId, sender, content, isAI = false) => {
-  const response = await api.post(`/rooms/${roomId}/messages/`, {
-    sender,
-    content,
-    is_ai: isAI
-  });
-  return response.data;
+  try {
+    const response = await api.post(
+      `/rooms/${roomId}/messages/`,
+      { sender, content, is_ai: isAI, room: roomId }
+    );
+    return response.data;
+  } catch (err) {
+    console.error("sendMessage 400:", err.response?.data);
+    throw err;
+  }
 };
 
 export const getMessages = async (roomId) => {
@@ -66,7 +86,7 @@ export const getMessages = async (roomId) => {
   return response.data;
 };
 
-// AI Agent operations
+// AI Agent/Partner operations
 export const getAIAgents = async () => {
   const response = await api.get('/ai-agents/');
   return response.data;
@@ -78,11 +98,7 @@ export const createAIAgent = async (role, description, avatar) => {
     formData.append('role', role);
     formData.append('description', description);
     if (avatar) {
-      formData.append('avatar', {
-        uri: avatar,
-        type: 'image/jpeg',
-        name: 'avatar.jpg'
-      });
+      formData.append('avatar', avatar);
     }
     
     const response = await api.post('/save-ai/', formData, {
@@ -95,6 +111,19 @@ export const createAIAgent = async (role, description, avatar) => {
     console.error('Error creating AI agent:', error.response?.data);
     throw error;
   }
+};
+
+// AI Partners for a specific room
+export const getAIPartners = async (roomId) => {
+  const response = await api.get(`/rooms/${roomId}/ai-partners/`);
+  return response.data;
+};
+
+export const setAIPartners = async (roomId, aiPartners) => {
+  const response = await api.post(`/rooms/${roomId}/ai-partners/`, {
+    aiPartners
+  });
+  return response.data;
 };
 
 // WebSocket connection for real-time updates

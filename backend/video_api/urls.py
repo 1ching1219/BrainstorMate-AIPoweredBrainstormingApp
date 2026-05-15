@@ -13,5 +13,6 @@ urlpatterns = [
     path('ai-agents/', views.list_ai_agents),
     path('save-ai/', views.save_ai_partner, name='save-ai-partners'),
     path('rooms/<str:room_id>/', views.get_room, name='get-room'),
+    path('rooms/<str:room_id>/ai_respond/', views.ai_respond, name='ai_respond'),
 ]
 
