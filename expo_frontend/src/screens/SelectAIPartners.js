@@ -1,0 +1,287 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView
+} from 'react-native';
+import { getAIAgents, addParticipant } from '../services/api';
+import { fonts } from '../config/fonts';
+
+// Import AI avatars
+const designerAvatar = require('../../assets/ai/designer.png');
+const engineerAvatar = require('../../assets/ai/engineer.png');
+const financeAvatar = require('../../assets/ai/finance.png');
+const defaultAvatar = require('../../assets/ai/default.png');
+
+const SelectAIPartners = ({ navigation, route }) => {
+  const [aiAgents, setAiAgents] = useState([]);
+  const [selectedAgents, setSelectedAgents] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingPage, setLoadingPage] = useState(true);
+  
+  const { roomId, isNewRoom } = route.params;
+  
+  useEffect(() => {
+    // Redirect if room ID is missing
+    if (!roomId) {
+      console.error('Room ID is missing');
+      navigation.navigate('Home');
+      return;
+    }
+    
+    // If not a new room, redirect to VideoRoom
+    if (!isNewRoom) {
+      navigation.navigate('VideoRoom', { roomId });
+      // navigation.navigate('Home', { roomId });
+      return;
+    }
+    
+    // Fetch AI agents from backend
+    const fetchAIAgents = async () => {
+      try {
+        const agents = await getAIAgents();
+        if (agents.length > 0) {
+          const roleFallbacks = {
+            designer: designerAvatar,
+            engineer: engineerAvatar,
+            finance: financeAvatar,
+            professor: defaultAvatar,
+          };
+
+          const updatedAgents = agents.map(agent => ({
+            ...agent,
+            avatarSource: agent.avatar_url
+              ? { uri: agent.avatar_url }
+              : roleFallbacks[(agent.role || '').toLowerCase()] || defaultAvatar
+          }));
+          setAiAgents(updatedAgents);
+        }
+      } catch (error) {
+        console.error('Error fetching AI agents:', error);
+        Alert.alert('Error', 'Failed to load AI agents. Please try again.');
+      } finally {
+        setLoadingPage(false);
+      }
+    };
+    
+    fetchAIAgents();
+  }, [roomId, navigation]);
+  
+  const toggleAgent = (agent) => {
+    if (selectedAgents.find(a => a.id === agent.id)) {
+      setSelectedAgents(selectedAgents.filter(a => a.id !== agent.id));
+    } else {
+      setSelectedAgents([...selectedAgents, agent]);
+    }
+  };
+  
+  const handleStart = async () => {
+    if (!roomId) {
+      console.error('Room ID is missing');
+      Alert.alert('Error', 'Cannot create room, missing room ID');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      console.log(`Setting up room ${roomId} with selected AI partners`);
+      
+      // Add AI partners to the room
+      for (const agent of selectedAgents) {
+        await addParticipant(roomId, agent.name, true);
+      }
+      
+      // Navigate to the room
+      navigation.navigate('VideoRoom', {
+        roomId,
+        aiPartners: selectedAgents
+      });
+    } catch (error) {
+      console.error('Error saving AI partners or starting room:', error);
+      Alert.alert('Error', 'Error while saving AI partners or joining room. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  if (loadingPage) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Loading AI partners...</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007aff" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+          <Text style={styles.backButton}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Select AI partners for your room</Text>
+      </View>
+      
+      <ScrollView contentContainerStyle={styles.grid}>
+        {aiAgents.map((agent) => (
+          <TouchableOpacity
+            key={agent.id}
+            style={[
+              styles.aiOption,
+              selectedAgents.some(a => a.id === agent.id) && styles.selectedOption
+            ]}
+            onPress={() => toggleAgent(agent)}
+          >
+            <View style={[
+              styles.aiAvatar,
+              selectedAgents.some(a => a.id === agent.id) && styles.selectedAvatar
+            ]}>
+              <Image source={agent.avatarSource || defaultAvatar} style={styles.aiImage} />
+            </View>
+            <Text style={styles.aiRole}>{agent.role}</Text>
+          </TouchableOpacity>
+        ))}
+        
+        {/* Add AI Button */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('AddAI', { roomId, isNewRoom })}
+        >
+          <View style={styles.addButtonInner}>
+            <Text style={styles.addButtonText}>+</Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+      
+      <TouchableOpacity
+        style={[styles.startButton, isLoading && styles.disabledButton]}
+        onPress={handleStart}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.startButtonText}>Start Room</Text>
+        )}
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 12,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  backButton: {
+    fontSize: 35,
+    fontFamily: fonts.inriaSans.bold,
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 24,
+    fontFamily: fonts.jaro.regular,
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    padding: 8,
+  },
+  aiOption: {
+    width: '48%',
+    alignItems: 'center',
+    marginBottom: 16,
+    padding: 8,
+    borderRadius: 10,
+  },
+  selectedOption: {
+    backgroundColor: 'rgba(197, 152, 54, 0.1)',
+  },
+  aiAvatar: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    marginBottom: 8,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedAvatar: {
+    borderWidth: 3,
+    borderColor: 'rgb(197, 152, 54)',
+  },
+  aiImage: {
+    width: '100%',
+    height: '100%',
+  },
+  aiRole: {
+    fontSize: 14,
+    fontFamily: fonts.inriaSans.bold,
+    textAlign: 'center',
+  },
+  startButton: {
+    padding: 12,
+    backgroundColor: '#007aff',
+    borderRadius: 24,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: fonts.inriaSans.bold,
+  },
+  addButton: {
+    width: '48%',
+    alignItems: 'center',
+    marginBottom: 16,
+    padding: 8,
+  },
+  addButtonInner: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#aaa',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    fontSize: 24,
+    fontFamily: fonts.inriaSans.bold,
+    color: '#aaa',
+  },
+});
+
+export default SelectAIPartners; 
