@@ -52,6 +52,23 @@ const ChatRoom = () => {
     flatListRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
+  // Send transcript from voice mode as a chat message
+  useEffect(() => {
+    const transcript = route.params?.voiceTranscript;
+    if (!transcript) return;
+    navigation.setParams({ voiceTranscript: undefined });
+    setTimeout(() => {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({
+          type: 'message',
+          sender: userName,
+          message: transcript,
+          is_ai: false,
+        }));
+      }
+    }, 400);
+  }, [route.params?.voiceTranscript]);
+
   // 1) Generate random AI feedback every 15s once connected
   useEffect(() => {
     if (aiPartners.length === 0 || !isConnected) return;
@@ -106,9 +123,8 @@ const ChatRoom = () => {
 
   const connectWS = () => {
     if (reconnectAttempts.current >= maxReconnect) return;
-    // const wsUrl = getWebSocketUrl(roomId);
-    // const ws = new WebSocket(wsUrl);
-    const ws = new WebSocket("wss://0000-0000.ngrok-free.app/ws/chat/" + roomId + "/");
+    const wsUrl = getWebSocketUrl(roomId);
+    const ws = new WebSocket(wsUrl);
     ws.onopen = () => {
       setIsConnected(true);
       reconnectAttempts.current = 0;

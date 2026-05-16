@@ -211,6 +211,8 @@ const ChatRoom = () => {
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  // Transcript carried back from VoiceMode — sent as a chat message once connected
+  const pendingVoiceTranscriptRef = useRef(location.state?.voiceTranscript || null);
   
   // Initialize and handle WebSocket connection
   useEffect(() => {
@@ -323,6 +325,23 @@ const ChatRoom = () => {
           is_system: true,
           created_at: new Date().toISOString()
         }]);
+
+        // If the user came back from voice mode with a transcript, send it as a chat message
+        if (pendingVoiceTranscriptRef.current) {
+          const transcript = pendingVoiceTranscriptRef.current;
+          pendingVoiceTranscriptRef.current = null;
+          setTimeout(() => {
+            if (newSocket.readyState === WebSocket.OPEN) {
+              newSocket.send(JSON.stringify({
+                type: 'message',
+                message: transcript,
+                sender: userName,
+                is_ai: false,
+                message_type: 'chat',
+              }));
+            }
+          }, 600);
+        }
       };
       
       newSocket.onclose = (event) => {
@@ -480,7 +499,7 @@ const ChatRoom = () => {
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
-    
+
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
       setMessages(prev => [...prev, {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -488,23 +507,32 @@ const ChatRoom = () => {
         is_system: true,
         created_at: new Date().toISOString()
       }]);
-      
+
       connectWebSocket();
       return;
     }
-    
+
+    const messageText = inputMessage;
+
     try {
-      // First send the user's message
       const messageObj = {
         type: 'message',
-        message: inputMessage,
+        message: messageText,
         sender: userName,
         is_ai: false,
         message_type: 'chat'
       };
-      
+
       socketRef.current.send(JSON.stringify(messageObj));
       setInputMessage('');
+
+      // Trigger AI response via REST so the backend uses OpenAI when the key is set
+      if (aiPartners && aiPartners.length > 0) {
+        axios.post(`/api/rooms/${roomId}/ai_respond/`, {
+          message: { sender: userName, content: messageText },
+          trigger_type: 'user_message'
+        }).catch(err => console.error("Error triggering AI response:", err));
+      }
     } catch (err) {
       console.error("Error sending message:", err);
       setMessages(prev => [...prev, {

@@ -27,26 +27,10 @@ urlpatterns = [
     path('rooms/<str:room_id>/ai_respond/', views.ai_respond, name='ai_respond'),
     path('rooms/<str:room_id>/ai_scheduled/', views.trigger_scheduled_ai_response, name='ai_scheduled'),
     
-    # Essential voice operations
+    # Voice session management (recording turns; AI voice responses disabled)
     path('rooms/<str:room_id>/voice/create-session/', views.create_voice_session, name='create-voice-session'),
     path('rooms/<str:room_id>/voice/end-session/<str:session_id>/', views.end_voice_session, name='end-voice-session'),
     path('rooms/<str:room_id>/voice/turn/', views.handle_voice_turn, name='voice-turn'),
-    
-    # Enhanced voice operations
-    path('rooms/<str:room_id>/voice/ai-response/', views.trigger_ai_voice_response, name='ai-voice-response'),
-    path('rooms/<str:room_id>/voice/ai-response-realtime/', views.trigger_ai_voice_response_realtime, name='ai-voice-response-realtime'),
-    
-    # NEW: Audio conversion endpoints
-    path('convert-audio-to-pcm16/', views.convert_audio_to_pcm16, name='convert-audio-to-pcm16'),
-    path('convert-audio-to-pcm16-no-temp/', views.convert_audio_to_pcm16_no_temp, name='convert-audio-to-pcm16-no-temp'),
-    path('realtime-audio-proxy/', views.realtime_audio_proxy, name='realtime-audio-proxy'),
-    
-    # Additional voice operations
-    path('rooms/<str:room_id>/voice/session/<str:session_id>/status/', views.get_voice_session_status, name='voice-session-status'),
-    path('rooms/<str:room_id>/voice/session/<str:session_id>/history/', views.get_voice_session_history, name='voice-session-history'),
-    path('rooms/<str:room_id>/voice/force-agent-response/', views.force_ai_agent_response, name='force-agent-response'),
-    path('rooms/<str:room_id>/voice/session/<str:session_id>/settings/', views.update_voice_session_settings, name='update-voice-session-settings'),
-    path('rooms/<str:room_id>/voice/conversation-summary/', views.get_voice_conversation_summary, name='voice-conversation-summary'),
 ]
 
 if settings.DEBUG:

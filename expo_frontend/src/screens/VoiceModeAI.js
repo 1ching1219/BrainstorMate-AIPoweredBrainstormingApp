@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,11 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 import { triggerAIResponse } from '../services/api';
 
 const getImageSource = (name) => {
@@ -34,6 +39,7 @@ const VoiceModeAI = () => {
   const passedAiPartners = route.params?.aiPartners || [];
 
   const [isMicOn, setIsMicOn] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
@@ -42,13 +48,95 @@ const VoiceModeAI = () => {
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [aiResponseText, setAIResponseText] = useState('');
   const [statusText, setStatusText] = useState('Ready');
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const recognitionRef = useRef(null);
+  // Accumulated transcript for passing back to chat on navigate
+  const transcriptRef = useRef('');
+  // Holds the native final transcript between 'result' and 'end' events
+  const nativeFinalTranscriptRef = useRef('');
+  // Always-current reference to handleTranscript (avoids stale closure in 'end' event)
+  const handleTranscriptRef = useRef(null);
+  // AI rotation refs
+  const speakerIntervalRef = useRef(null);
+  const aiParticipantsRef = useRef([]);
+  // Tracks user intent: true = mic should stay on, auto-restart after each utterance
+  const isMicOnRef = useRef(false);
+
   const recognitionSupported = useMemo(() => {
-    if (Platform.OS !== 'web') return false;
+    if (Platform.OS !== 'web') return true; // native handled by expo-speech-recognition
     if (typeof window === 'undefined') return false;
     return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   }, []);
+
+  // ── Native speech recognition events (no-op on web, web uses window.SpeechRecognition) ──
+
+  useSpeechRecognitionEvent('start', () => {
+    if (Platform.OS === 'web') return;
+    setIsListening(true);
+    setIsMicOn(true);
+    setStatusText('Listening...');
+  });
+
+  useSpeechRecognitionEvent('result', (event) => {
+    if (Platform.OS === 'web') return;
+    let interim = '';
+    for (const result of event.results) {
+      if (result.isFinal) {
+        const text = result.transcript;
+        nativeFinalTranscriptRef.current += text + ' ';
+        transcriptRef.current += text + ' ';
+      } else {
+        interim += result.transcript;
+      }
+    }
+    setCurrentTranscript((nativeFinalTranscriptRef.current + interim).trim());
+  });
+
+  // 'end' fires when the recognition session closes — process the utterance
+  useSpeechRecognitionEvent('end', () => {
+    if (Platform.OS === 'web') return;
+    setIsListening(false);
+    const transcript = nativeFinalTranscriptRef.current.trim();
+    nativeFinalTranscriptRef.current = '';
+    setCurrentTranscript('');
+    if (transcript && handleTranscriptRef.current) {
+      handleTranscriptRef.current(transcript);
+    }
+    // Auto-restart if the user hasn't tapped to stop — keeps mic "hot"
+    if (isMicOnRef.current) {
+      setTimeout(() => {
+        if (isMicOnRef.current) {
+          ExpoSpeechRecognitionModule.start({ lang: 'en-US', continuous: false, interimResults: true });
+        }
+      }, 300);
+    } else {
+      setIsMicOn(false);
+      setStatusText('Ready');
+    }
+  });
+
+  useSpeechRecognitionEvent('error', (event) => {
+    if (Platform.OS === 'web') return;
+    const recoverable = event.error === 'no-speech' || event.error === 'aborted';
+    if (!recoverable) {
+      console.warn('Speech recognition error:', event.error, event.message);
+    }
+    nativeFinalTranscriptRef.current = '';
+    // Restart on recoverable errors (silence timeout, background noise), stop on fatal ones
+    if (isMicOnRef.current && recoverable) {
+      setTimeout(() => {
+        if (isMicOnRef.current) {
+          ExpoSpeechRecognitionModule.start({ lang: 'en-US', continuous: false, interimResults: true });
+        }
+      }, 300);
+    } else {
+      isMicOnRef.current = false;
+      setIsListening(false);
+      setIsMicOn(false);
+      setStatusText('Ready');
+    }
+  });
 
   useEffect(() => {
     const allSpeakers = [
@@ -74,6 +162,44 @@ const VoiceModeAI = () => {
     };
   }, [userName]);
 
+  // Keep aiParticipantsRef current whenever participants list changes
+  useEffect(() => {
+    aiParticipantsRef.current = participants.filter(p => p.isAI);
+  }, [participants]);
+
+  const stopAiRotation = useCallback(() => {
+    if (speakerIntervalRef.current) {
+      clearInterval(speakerIntervalRef.current);
+      speakerIntervalRef.current = null;
+    }
+  }, []);
+
+  const startAiRotation = useCallback(() => {
+    stopAiRotation();
+    speakerIntervalRef.current = setInterval(() => {
+      const aiList = aiParticipantsRef.current;
+      if (aiList.length === 0) return;
+      const next = aiList[Math.floor(Math.random() * aiList.length)];
+      setCurrentSpeaker(next);
+    }, 3000);
+  }, [stopAiRotation]);
+
+  // Start AI rotation when idle, pause when user is speaking / AI is responding
+  useEffect(() => {
+    if (isListening || isProcessing || isAISpeaking) {
+      stopAiRotation();
+      if (isListening) {
+        // Immediately show the user as active while mic is open
+        setCurrentSpeaker(prev =>
+          prev.isAI ? participants.find(p => !p.isAI) || prev : prev
+        );
+      }
+    } else if (participants.length > 1) {
+      startAiRotation();
+    }
+    return stopAiRotation;
+  }, [isListening, isProcessing, isAISpeaking, participants, startAiRotation, stopAiRotation]);
+
   const getRandomColor = () => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
     return colors[Math.floor(Math.random() * colors.length)];
@@ -82,6 +208,11 @@ const VoiceModeAI = () => {
   const getInitial = (name) => (name ? name.charAt(0).toUpperCase() : '?');
 
   const stopRecognition = () => {
+    if (Platform.OS !== 'web') {
+      ExpoSpeechRecognitionModule.stop();
+      setIsListening(false);
+      return;
+    }
     const recognition = recognitionRef.current;
     if (recognition) {
       recognition.onresult = null;
@@ -157,12 +288,24 @@ const VoiceModeAI = () => {
       setIsProcessing(false);
     }
   };
+  // Keep ref current on every render so the native 'end' event always calls the latest version
+  handleTranscriptRef.current = handleTranscript;
 
   const startRecognition = () => {
+    // Native path: use expo-speech-recognition
+    if (Platform.OS !== 'web') {
+      ExpoSpeechRecognitionModule.start({
+        lang: 'en-US',
+        continuous: false, // single utterance → AI response per turn
+        interimResults: true,
+      });
+      return;
+    }
+
     if (!recognitionSupported) {
       Alert.alert(
         'Voice Input Not Available',
-        'This device does not support live voice recognition in this app yet.',
+        'This browser does not support live voice recognition.',
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -232,29 +375,59 @@ const VoiceModeAI = () => {
     }
   };
 
-  const toggleMic = () => {
-    if (isProcessing || isAISpeaking) {
+  const toggleMic = async () => {
+    if (isProcessing || isAISpeaking) return;
+
+    // Tapping while mic is "on" (listening or between auto-restarts) → turn off
+    if (isMicOnRef.current || isListening) {
+      isMicOnRef.current = false;
+      stopRecognition();
+      setIsMicOn(false);
+      setStatusText('Ready');
       return;
     }
 
-    if (isListening) {
-      stopRecognition();
-      setStatusText('Ready');
-      return;
+    if (Platform.OS !== 'web') {
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) {
+        Alert.alert('Microphone permission denied', 'Please allow microphone access in your device settings.');
+        return;
+      }
+      isMicOnRef.current = true;
     }
 
     startRecognition();
   };
 
+  const toggleCamera = async () => {
+    if (!isCameraOn) {
+      if (!cameraPermission?.granted) {
+        const result = await requestCameraPermission();
+        if (!result.granted) {
+          Alert.alert('Camera permission denied', 'Please allow camera access in your device settings.');
+          return;
+        }
+      }
+    }
+    setIsCameraOn(prev => !prev);
+  };
+
   const navigateToChat = () => {
+    isMicOnRef.current = false;
+    stopRecognition();
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     navigation.navigate('ChatRoomAI', {
       roomId,
       aiPartners: passedAiPartners,
-      username: userName
+      username: userName,
+      voiceTranscript: transcriptRef.current.trim() || undefined,
     });
   };
 
   const navigateToHome = () => {
+    isMicOnRef.current = false;
     stopRecognition();
     navigation.navigate('Home');
   };
@@ -336,6 +509,14 @@ const VoiceModeAI = () => {
           <Feather name={isMicOn ? 'mic' : 'mic-off'} size={24} color="white" />
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.controlButton, isCameraOn && styles.cameraButton]}
+          onPress={toggleCamera}
+          activeOpacity={0.7}
+        >
+          <Feather name={isCameraOn ? 'video' : 'video-off'} size={24} color="white" />
+        </TouchableOpacity>
+
         <TouchableOpacity style={[styles.controlButton, styles.chatButton]} onPress={navigateToChat} activeOpacity={0.7}>
           <Feather name="message-square" size={24} color="white" />
         </TouchableOpacity>
@@ -344,6 +525,13 @@ const VoiceModeAI = () => {
           <Feather name="x" size={24} color="white" />
         </TouchableOpacity>
       </View>
+
+      {/* PIP local camera preview */}
+      {isCameraOn && (
+        <View style={styles.pipContainer}>
+          <CameraView facing="front" style={styles.pipCamera} />
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -507,6 +695,24 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5
+  },
+  cameraButton: {
+    backgroundColor: '#2a70e0'
+  },
+  pipContainer: {
+    position: 'absolute',
+    bottom: 110,
+    right: 16,
+    width: 120,
+    height: 90,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#7289da',
+    zIndex: 10,
+  },
+  pipCamera: {
+    flex: 1,
   }
 });
 

@@ -1,12 +1,12 @@
 # BrainstroMate - Your AI-powered Creative Partner
 
-**BrainstroMate** is an AI-powered brainstorming tool designed to enhance creativity and productivity in online meetings. It uses React.js for the frontend and Django for the backend, providing custom AI agents (via prompt role settings) that join online meetings to assist in discussions. This tool tackles the common challenges of brainstorming sessions, such as difficulty in finding the right team members and creative stagnation during discussions.
+**BrainstroMate** is an AI-powered brainstorming tool designed to enhance creativity and productivity in online meetings. It uses React.js for the frontend and Django for the backend, providing custom AI agents (via prompt role settings) that join online meetings to assist in discussions. This tool tackles the common challenges of brainstorming sessions, such as difficulty in finding the right team members and creative stagnation during discussions. Form your desired team with numbers of humans and ai helpers!
 
 ---
 
 ## 🚀 Features
 
-- **AI-Powered Agent**: Customizable AI agents can be added to the meeting to provide relevant suggestions, ask questions, and drive the conversation.
+- **AI-Powered Agent**: Customizable AI agents can be added to the meeting to provide relevant suggestions, ask questions, and drive the conversation. 
 - **Video & Messaging Support**: Real-time video and messaging powered by WebRTC and socket communication for seamless interaction.
 - **Dynamic Prompt Role Setting**: Users can define the role of the AI agent, tailoring its behavior and responses to match the session's goals.
 - **Real-time Collaboration**: Participants can collaborate efficiently through video and chat, with real-time communication and updates.
@@ -142,6 +142,7 @@ npm start
 - Open http://localhost:8001
 - The app reads `REACT_APP_API_BASE_URL` from `.env`; defaults to `http://localhost:8000/api` if not set
 - The WebSocket URL is derived from the same backend base automatically
+- **Voice / transcription**: Use **Google Chrome** — the Web Speech API for real-time auto-transcription is only supported in Chrome. Other browsers (Firefox, Safari) do not support it and will show no transcription.
 
 ---
 
@@ -175,6 +176,17 @@ npx expo start --tunnel
 - The WebSocket URL is automatically constructed from the same API base URL
 - Use `npx expo start --tunnel` to expose your dev server for testing on physical devices
 
+> **Native build required**: Features like microphone (speech recognition) and camera **cannot run in Expo Go** — they require a native development build.
+>
+> ```bash
+> # Build and install the dev client on your device:
+> eas build --profile development --platform android   # or --platform ios
+> # Download the resulting .apk / .ipa and install it, then:
+> npx expo start --dev-client
+> ```
+>
+> **Same Wi-Fi**: The test phone and the computer running the backend must be on the **same Wi-Fi network** when using a LAN IP (`192.168.x.y`). If they are on different networks, use ngrok instead.
+
 ---
 
 ## 🔗 Connecting Multiple Clients Locally
@@ -207,8 +219,12 @@ To run web and mobile clients simultaneously:
 
 - **Shared Backend**: Both web and mobile apps use the same Django API and WebSocket server
 - **Real-time Communication**: WebRTC for video + WebSockets for messaging
-- **AI Agents**: Customizable AI partners with role-based feedback (Designer, Engineer, Finance, Professor)
+- **AI Agents**: Customizable AI partners with role-based feedback (Designer, Engineer, Finance, Professor) and can customize yours!
+   - (If no api specified) will fall back to default responses
 - **Cross-platform**: Web (React) and Mobile (React Native/Expo) clients targeting same backend
+- To be implemented: 
+   - **AI speech response**: AI agents can respond in text currently(chat mode), and can be implement in voice mode in the future.
+
 
 ---
 

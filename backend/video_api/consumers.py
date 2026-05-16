@@ -27,16 +27,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
             await self.accept()
 
-            # Track connections per room; start feedback tasks only for first joiner
             count = ChatConsumer._room_connections.get(self.room_id, 0)
             ChatConsumer._room_connections[self.room_id] = count + 1
 
             if count == 0:
                 ChatConsumer._room_tasks[self.room_id] = []
                 ai_agents = await self.get_room_ai_agents()
-                for agent in ai_agents:
-                    await asyncio.sleep(10)
-                    task = asyncio.create_task(self.generate_periodic_ai_feedback(agent))
+                for i, agent in enumerate(ai_agents):
+                    # Stagger each agent's first message by 15s so they don't all fire at once
+                    task = asyncio.create_task(
+                        self.generate_periodic_ai_feedback(agent, initial_delay=10 + i * 15)
+                    )
                     ChatConsumer._room_tasks[self.room_id].append(task)
 
         except Exception as e:
@@ -52,7 +53,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         count = ChatConsumer._room_connections.get(self.room_id, 1)
         count -= 1
         if count <= 0:
-            # Last user left — cancel all background tasks for this room
             for task in ChatConsumer._room_tasks.pop(self.room_id, []):
                 task.cancel()
             ChatConsumer._room_connections.pop(self.room_id, None)
@@ -67,21 +67,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.handle_chat_message(data)
         elif message_type == 'signal':
             await self.handle_signal(data)
-        else:
-            # Handle any other message types if necessary
-            pass
 
     async def handle_chat_message(self, data):
-        # pull text from either 'message' or 'content'
         msg_text = data.get('message') or data.get('content')
         if msg_text is None:
-            # nothing to do if no payload
             return
 
         sender = data.get('sender', 'unknown')
         is_ai = data.get('is_ai', False)
 
-        # now save and broadcast with the normalized text
         message_info = await self.save_message(sender, msg_text, is_ai)
 
         await self.channel_layer.group_send(
@@ -95,11 +89,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'created_at': message_info['created_at']
             }
         )
-        # AI responses are triggered exclusively via the REST API (ai_respond endpoint)
-        # to avoid double-generating responses from both this consumer and the client's REST call.
+        # AI responses to user messages are triggered via the REST ai_respond endpoint,
+        # which calls OpenAI with full conversation history. No duplicate call here.
 
     async def handle_signal(self, data):
-        # Handle WebRTC signaling
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -111,21 +104,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def chat_message(self, event):
-        # FIXED: Send message to WebSocket with consistent format that frontend expects
         message_data = {
-            'type': 'message',  # Frontend expects this type for regular messages
-            'message': event['message'],  # Content goes in 'message' field
+            'type': 'message',
+            'message': event['message'],
             'sender': event['sender'],
             'is_ai': event['is_ai'],
             'id': event.get('id'),
             'created_at': event.get('created_at')
         }
-        
         await self.send(text_data=json.dumps(message_data))
         print(f"WebSocket message sent to client: {event['sender']} - {event['message'][:50]}...")
 
     async def signaling(self, event):
-        # Send signaling data to WebSocket
         await self.send(text_data=json.dumps({
             'type': 'signal',
             'signal': event['signal'],
@@ -134,9 +124,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def feedback(self, event):
-        # FIXED: Send AI feedback to WebSocket with consistent format
         message_data = {
-            'type': 'message',  # Use 'message' type so frontend handles it correctly
+            'type': 'message',
             'message': event['message'],
             'sender': event['sender'],
             'is_ai': True,
@@ -147,7 +136,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         print(f"AI feedback sent via WebSocket: {event['sender']} - {event['message'][:50]}...")
 
     async def voice_turn(self, event):
-        """Handle voice turn updates"""
         await self.send(text_data=json.dumps({
             'type': 'voice_turn',
             'speaker': event['speaker'],
@@ -190,20 +178,38 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         return agents
 
-    async def generate_periodic_ai_feedback(self, agent):
-        """Generate periodic AI feedback for a specific agent"""
-        # Wait a bit before starting
-        await asyncio.sleep(10)
+    @database_sync_to_async
+    def get_recent_messages_text(self, limit=10):
+        room = Room.objects.get(room_id=self.room_id)
+        messages = Message.objects.filter(room=room).order_by('-created_at')[:limit]
+        return "\n".join([f"{m.sender}: {m.content}" for m in reversed(list(messages))])
+
+    async def generate_periodic_ai_feedback(self, agent, initial_delay=10):
+        """Periodically send AI feedback. Uses OpenAI when key is set, templates otherwise."""
+        await asyncio.sleep(initial_delay)
 
         while True:
             try:
-                feedback = generate_ai_feedback(agent['role'])
+                # Fetch recent conversation context for a more relevant response
+                context = await self.get_recent_messages_text()
+
+                # Run the (potentially blocking) OpenAI call in a thread pool so
+                # the event loop stays free for other WebSocket operations.
+                feedback = await asyncio.to_thread(
+                    generate_ai_feedback, agent['role'], context
+                )
+
+                if not feedback or not feedback.strip():
+                    print(f"[AI DEBUG] Empty feedback for {agent['name']}, skipping broadcast")
+                    await asyncio.sleep(30)
+                    continue
+
                 message_info = await self.save_message(agent['name'], feedback, True)
 
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
-                        'type': 'chat.message',  # FIXED: Use chat.message instead of feedback
+                        'type': 'chat.message',
                         'message': feedback,
                         'sender': agent['name'],
                         'is_ai': True,
@@ -211,32 +217,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'created_at': message_info['created_at']
                     }
                 )
+                print(f"Periodic AI feedback: {agent['name']} - {feedback[:60]}...")
 
-                # Random interval between 30 and 60 seconds
-                await asyncio.sleep(30 + (asyncio.get_event_loop().time() % 30))
-
+            except asyncio.CancelledError:
+                # Task was cancelled on disconnect — exit cleanly
+                return
             except Exception as e:
-                print(f"Error during periodic feedback: {e}")
-                await asyncio.sleep(30)  # Wait and retry
+                print(f"Error during periodic feedback for {agent['name']}: {e}")
 
-    async def send_ai_response(self, agent, user_message, delay=0):
-        """Send an AI response to a user message"""
-        try:
-            if delay:
-                await asyncio.sleep(delay)
-            response = generate_ai_response(user_message, agent['role'])
-            message_info = await self.save_message(agent['name'], response, True)
-
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat.message',  # FIXED: Use chat.message for consistency
-                    'message': response,
-                    'sender': agent['name'],
-                    'is_ai': True,
-                    'id': message_info['id'],
-                    'created_at': message_info['created_at']
-                }
-            )
-        except Exception as e:
-            print(f"Error generating AI response: {e}")
+            # Random interval between 30 and 60 seconds before next message
+            await asyncio.sleep(30 + (asyncio.get_event_loop().time() % 30))

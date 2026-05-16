@@ -25,6 +25,7 @@
     "expo-file-system": "~18.0.12",
     "expo-font": "~13.0.4",
     "expo-image-picker": "~16.0.6",
+    "expo-speech-recognition": "^3.1.3",
     "expo-sqlite": "~15.1.4",
     "expo-status-bar": "~2.0.1",
     "react": "18.3.1",
@@ -48,7 +49,11 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["react-native-webrtc", "@config-plugins/react-native-webrtc", "socket.io-client"],
+        "exclude": [
+          "react-native-webrtc",
+          "@config-plugins/react-native-webrtc",
+          "socket.io-client"
+        ],
         "listUnknownPackages": false
       }
     }

@@ -38,11 +38,14 @@ const ChatRoomAI = () => {
   const [input, setInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isAIResponding, setIsAIResponding] = useState(false);
+
   const socketRef = useRef();
   const reconnectAttempts = useRef(0);
   const maxReconnect = 5;
   const flatListRef = useRef();
   const shouldReconnectRef = useRef(true);
+  const aiPartnersRef = useRef(aiPartners);
+  const isAIRespondingRef = useRef(false);
 
   useEffect(() => {
     AsyncStorage.getItem('username').then(name => {
@@ -71,6 +74,93 @@ const ChatRoomAI = () => {
   useEffect(() => {
     flatListRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
+
+  // Send transcript from voice mode as a chat message when screen regains focus
+  useEffect(() => {
+    const transcript = route.params?.voiceTranscript;
+    if (!transcript) return;
+    navigation.setParams({ voiceTranscript: undefined });
+
+    // Optimistic insert — shows immediately without waiting for WebSocket echo
+    const optimisticId = `voice-${Date.now()}`;
+    setMessages(prev => {
+      const exists = prev.some(m => m.sender === userName && m.content === transcript);
+      if (exists) return prev;
+      return [...prev, {
+        id: optimisticId,
+        sender: userName,
+        is_ai: false,
+        content: transcript,
+        created_at: new Date().toISOString()
+      }];
+    });
+
+    // Also broadcast via WebSocket so other clients and the backend receive it
+    setTimeout(() => {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({
+          type: 'message',
+          sender: userName,
+          message: transcript,
+          is_ai: false,
+        }));
+      }
+    }, 400);
+  }, [route.params?.voiceTranscript]);
+
+  // Keep refs in sync so the interval callback never has stale state
+  useEffect(() => { aiPartnersRef.current = aiPartners; }, [aiPartners]);
+  useEffect(() => { isAIRespondingRef.current = isAIResponding; }, [isAIResponding]);
+
+  const generateRandomFeedback = (role) => {
+    const feedbackOptions = {
+      Designer: [
+        "I notice the UI elements could be more consistent. Consider a unified color scheme.",
+        "The user flow seems to have some friction points. We should simplify the navigation.",
+        "Visual hierarchy could be improved to guide users more effectively.",
+        "Have you considered accessibility in this design? Some elements may need better contrast."
+      ],
+      Engineer: [
+        "The current architecture might have scaling issues under load.",
+        "We should consider optimizing database queries for better performance.",
+        "This would be a good opportunity to implement caching to reduce server load.",
+        "The current solution works, but we might want to refactor for maintainability."
+      ],
+      Finance: [
+        "Based on our projections, allocate more resources to marketing.",
+        "The ROI on this feature looks promising given current metrics.",
+        "Consider cost implications of this infrastructure change.",
+        "Prioritize features with higher revenue potential from a financial view."
+      ],
+      Professor: [
+        "This aligns with recent research in the field.",
+        "Consider the theoretical implications of this framework.",
+        "We should examine case studies with similar implementations.",
+        "The methodology needs more rigorous validation before proceeding."
+      ]
+    };
+    const opts = feedbackOptions[role] || ["I have some insights to share."];
+    return opts[Math.floor(Math.random() * opts.length)];
+  };
+
+  // Periodically have a random AI partner send a feedback message (~every 15s)
+  useEffect(() => {
+    if (aiPartners.length === 0 || !isConnected) return;
+    const feedbackInterval = setInterval(() => {
+      if (isAIRespondingRef.current) return;
+      const partners = aiPartnersRef.current;
+      if (partners.length === 0) return;
+      const agent = partners[Math.floor(Math.random() * partners.length)];
+      const feedback = generateRandomFeedback(agent.role);
+      socketRef.current?.send(JSON.stringify({
+        type: 'message',
+        sender: agent.name,
+        message: feedback,
+        is_ai: true
+      }));
+    }, 15000);
+    return () => clearInterval(feedbackInterval);
+  }, [aiPartners, isConnected]);
 
   const connectWS = () => {
     if (reconnectAttempts.current >= maxReconnect) return;
