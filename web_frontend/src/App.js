@@ -6,6 +6,7 @@ import SelectAIPartners from './components/SelectAIPartners';
 import CreateRoom from './components/CreateRoom';
 import JoinRoom from './components/JoinRoom';
 import AddAI from './components/AddAI';
+import EditAI from './components/EditAI';
 import ChatRoom from './components/ChatRoom';
 import VoiceMode from './components/VoiceMode';
 import ChatMockup from './components/ChatRoom_Mockup'; // Mockup component for testing
@@ -20,6 +21,7 @@ function App() {
         <Route path="/join-room" element={<JoinRoom />} />
         <Route path="/select-partners" element={<SelectAIPartners />} />
         <Route path="/add-ai" element={<AddAI />} />
+        <Route path="/edit-ai" element={<EditAI />} />
         {/* <Route path="/room/:roomId" element={<VideoRoom />} /> */}
         <Route path="/room/:roomId" element={<ChatRoom />} />
         <Route path="/voice-mode/:roomId" element={<VoiceMode />} />

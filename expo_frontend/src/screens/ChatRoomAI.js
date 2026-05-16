@@ -188,7 +188,10 @@ const ChatRoomAI = () => {
             };
 
             setMessages(prev => {
-              const exists = prev.some(msg => msg.id === messageToAdd.id);
+              const exists = prev.some(msg =>
+                msg.id === messageToAdd.id ||
+                (msg.sender === messageToAdd.sender && msg.content === messageToAdd.content)
+              );
               if (exists) {
                 return prev;
               }

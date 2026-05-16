@@ -12,16 +12,20 @@ import {
   ScrollView
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { createAIAgent } from '../services/api';
+import { updateAIAgent, deleteAIAgent } from '../services/api';
 import { fonts } from '../config/fonts';
 
-const AddAI = ({ navigation, route }) => {
-  const [role, setRole] = useState('');
-  const [description, setDescription] = useState('');
+const EditAI = ({ navigation, route }) => {
+  const { agent, roomId, isNewRoom } = route.params;
+
+  const [role, setRole] = useState(agent.role || '');
+  const [description, setDescription] = useState(agent.description || '');
+  // avatar holds a local file URI if the user picks a new image, otherwise null (keep existing)
   const [avatar, setAvatar] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const { roomId, isNewRoom } = route.params;
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const existingAvatarUri = agent.avatar_url || null;
 
   const pickImage = async () => {
     try {
@@ -31,12 +35,10 @@ const AddAI = ({ navigation, route }) => {
         aspect: [1, 1],
         quality: 1,
       });
-
       if (!result.canceled) {
         setAvatar(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
@@ -46,22 +48,47 @@ const AddAI = ({ navigation, route }) => {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
-    setIsLoading(true);
-
+    setIsSaving(true);
     try {
-      // Create AI agent in backend
-      await createAIAgent(role, description, avatar);
-      
-      // Navigate back to SelectAIPartners
+      await updateAIAgent(agent.id, role.trim(), description.trim(), avatar);
       navigation.navigate('SelectAIPartners', { roomId, isNewRoom });
     } catch (error) {
-      console.error('Error creating AI agent:', error);
-      Alert.alert('Error', 'Failed to create AI agent. Please try again.');
+      Alert.alert('Error', 'Failed to update AI partner. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete AI Partner',
+      `Are you sure you want to delete "${agent.role}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await deleteAIAgent(agent.id);
+              navigation.navigate('SelectAIPartners', { roomId, isNewRoom });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete AI partner. Please try again.');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const previewSource = avatar
+    ? { uri: avatar }
+    : existingAvatarUri
+      ? { uri: existingAvatarUri }
+      : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -69,22 +96,21 @@ const AddAI = ({ navigation, route }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Add New AI Partner</Text>
+        <Text style={styles.title}>Edit AI Partner</Text>
       </View>
 
       <ScrollView style={styles.form}>
         <View style={styles.imageContainer}>
-          <TouchableOpacity
-            style={styles.imagePlaceholder}
-            onPress={pickImage}
-          >
-            {avatar ? (
-              <Image source={{ uri: avatar }} style={styles.image} />
+          <TouchableOpacity style={styles.imagePlaceholder} onPress={pickImage}>
+            {previewSource ? (
+              <Image source={previewSource} style={styles.image} />
             ) : (
               <Text style={styles.imagePlaceholderText}>+</Text>
             )}
           </TouchableOpacity>
-          <Text style={styles.imageLabel}>Add Avatar</Text>
+          <Text style={styles.imageLabel}>
+            {avatar ? 'New image selected' : 'Tap to change avatar'}
+          </Text>
         </View>
 
         <View style={styles.inputGroup}>
@@ -110,14 +136,26 @@ const AddAI = ({ navigation, route }) => {
         </View>
 
         <TouchableOpacity
-          style={[styles.saveButton, isLoading && styles.disabledButton]}
+          style={[styles.saveButton, isSaving && styles.disabledButton]}
           onPress={handleSave}
-          disabled={isLoading}
+          disabled={isSaving || isDeleting}
         >
-          {isLoading ? (
+          {isSaving ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.saveButtonText}>Save AI Partner</Text>
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.deleteButton, isDeleting && styles.disabledButton]}
+          onPress={handleDelete}
+          disabled={isSaving || isDeleting}
+        >
+          {isDeleting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.deleteButtonText}>Delete AI Partner</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -126,10 +164,7 @@ const AddAI = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -146,14 +181,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: fonts.jaro.regular,
   },
-  form: {
-    flex: 1,
-    padding: 20,
-  },
-  imageContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
+  form: { flex: 1, padding: 20 },
+  imageContainer: { alignItems: 'center', marginBottom: 20 },
   imagePlaceholder: {
     width: 120,
     height: 120,
@@ -162,24 +191,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
+    overflow: 'hidden',
   },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 60,
-  },
-  imagePlaceholderText: {
-    fontSize: 40,
-    color: '#999',
-  },
+  image: { width: '100%', height: '100%', borderRadius: 60 },
+  imagePlaceholderText: { fontSize: 40, color: '#999' },
   imageLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: fonts.inriaSans.regular,
     color: '#666',
   },
-  inputGroup: {
-    marginBottom: 20,
-  },
+  inputGroup: { marginBottom: 20 },
   label: {
     fontSize: 16,
     fontFamily: fonts.inriaSans.bold,
@@ -193,10 +214,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.inriaSans.regular,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
+  textArea: { height: 100, textAlignVertical: 'top' },
   saveButton: {
     backgroundColor: 'gray',
     padding: 16,
@@ -204,14 +222,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
-  disabledButton: {
-    backgroundColor: '#ccc',
-  },
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
     fontFamily: fonts.inriaSans.bold,
   },
+  deleteButton: {
+    backgroundColor: '#c0392b',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 32,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: fonts.inriaSans.bold,
+  },
+  disabledButton: { opacity: 0.5 },
 });
 
-export default AddAI; 
+export default EditAI;

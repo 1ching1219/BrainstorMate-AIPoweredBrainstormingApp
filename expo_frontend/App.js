@@ -8,6 +8,7 @@ import SelectAIPartners from './src/screens/SelectAIPartners';
 import VoiceMode from './src/screens/VoiceMode';
 import VoiceModeAI from './src/screens/VoiceModeAI';
 import AddAI from './src/screens/AddAI';
+import EditAI from './src/screens/EditAI';
 import ChatRoom from './src/screens/ChatRoom';
 import ChatRoomAI from './src/screens/ChatRoomAI';
 // import VideoRoom from './src/screens/VideoRoom';
@@ -55,9 +56,14 @@ export default function App() {
           component={SelectAIPartners} 
           options={{ headerShown: false }}
         />
-        <Stack.Screen 
-          name="AddAI" 
-          component={AddAI} 
+        <Stack.Screen
+          name="AddAI"
+          component={AddAI}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditAI"
+          component={EditAI}
           options={{ headerShown: false }}
         />
         <Stack.Screen

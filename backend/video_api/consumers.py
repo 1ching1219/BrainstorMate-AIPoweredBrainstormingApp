@@ -95,13 +95,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'created_at': message_info['created_at']
             }
         )
-
-        # Generate AI responses to every user message, staggered so they don't arrive simultaneously
-        if not is_ai:
-            ai_agents = await self.get_room_ai_agents()
-            for i, agent in enumerate(ai_agents):
-                if agent['name'] and agent['role']:
-                    asyncio.create_task(self.send_ai_response(agent, msg_text, delay=i * 2))
+        # AI responses are triggered exclusively via the REST API (ai_respond endpoint)
+        # to avoid double-generating responses from both this consumer and the client's REST call.
 
     async def handle_signal(self, data):
         # Handle WebRTC signaling

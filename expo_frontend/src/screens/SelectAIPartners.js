@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -27,50 +27,44 @@ const SelectAIPartners = ({ navigation, route }) => {
   
   const { roomId, isNewRoom } = route.params;
   
+  const fetchAIAgents = useCallback(async () => {
+    setLoadingPage(true);
+    try {
+      const agents = await getAIAgents();
+      const roleFallbacks = {
+        designer: designerAvatar,
+        engineer: engineerAvatar,
+        finance: financeAvatar,
+        professor: defaultAvatar,
+      };
+      const updatedAgents = (agents || []).map(agent => ({
+        ...agent,
+        avatarSource: agent.avatar_url
+          ? { uri: agent.avatar_url }
+          : roleFallbacks[(agent.role || '').toLowerCase()] || defaultAvatar
+      }));
+      setAiAgents(updatedAgents);
+    } catch (error) {
+      console.error('Error fetching AI agents:', error);
+      Alert.alert('Error', 'Failed to load AI agents. Please try again.');
+    } finally {
+      setLoadingPage(false);
+    }
+  }, []);
+
   useEffect(() => {
-    // Redirect if room ID is missing
     if (!roomId) {
-      console.error('Room ID is missing');
       navigation.navigate('Home');
       return;
     }
-    
-    // If not a new room, redirect to ChatRoom
     if (!isNewRoom) {
       navigation.navigate('ChatRoomAI', { roomId });
       return;
     }
-    
-    // Fetch AI agents from backend
-    const fetchAIAgents = async () => {
-      try {
-        const agents = await getAIAgents();
-        if (agents.length > 0) {
-          const roleFallbacks = {
-            designer: designerAvatar,
-            engineer: engineerAvatar,
-            finance: financeAvatar,
-            professor: defaultAvatar,
-          };
-
-          const updatedAgents = agents.map(agent => ({
-            ...agent,
-            avatarSource: agent.avatar_url
-              ? { uri: agent.avatar_url }
-              : roleFallbacks[(agent.role || '').toLowerCase()] || defaultAvatar
-          }));
-          setAiAgents(updatedAgents);
-        }
-      } catch (error) {
-        console.error('Error fetching AI agents:', error);
-        Alert.alert('Error', 'Failed to load AI agents. Please try again.');
-      } finally {
-        setLoadingPage(false);
-      }
-    };
-    
     fetchAIAgents();
-  }, [roomId, navigation]);
+    const unsubscribe = navigation.addListener('focus', fetchAIAgents);
+    return unsubscribe;
+  }, [roomId, isNewRoom, navigation, fetchAIAgents]);
   
   const toggleAgent = (agent) => {
     if (selectedAgents.find(a => a.id === agent.id)) {
@@ -146,6 +140,8 @@ const SelectAIPartners = ({ navigation, route }) => {
               selectedAgents.some(a => a.id === agent.id) && styles.selectedOption
             ]}
             onPress={() => toggleAgent(agent)}
+            onLongPress={() => navigation.navigate('EditAI', { agent, roomId, isNewRoom })}
+            delayLongPress={400}
           >
             <View style={[
               styles.aiAvatar,

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as FileSystem from 'expo-file-system';
 
 const DEFAULT_API_BASE_URL = 'http://localhost:8000/api';
 
@@ -107,21 +108,56 @@ export const getAIAgents = async () => {
 
 export const createAIAgent = async (role, description, avatar) => {
   try {
-    const formData = new FormData();
-    formData.append('role', role);
-    formData.append('description', description);
+    const payload = { role, description };
+
     if (avatar) {
-      formData.append('avatar', avatar);
+      const filename = avatar.split('/').pop();
+      const ext = /\.(\w+)$/.exec(filename);
+      const base64 = await FileSystem.readAsStringAsync(avatar, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      payload.avatar_base64 = base64;
+      payload.avatar_filename = filename || 'avatar.jpg';
+      payload.avatar_mimetype = ext ? `image/${ext[1].toLowerCase()}` : 'image/jpeg';
     }
-    
-    const response = await api.post('/save-ai/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+
+    const response = await api.post('/save-ai-base64/', payload);
     return response.data;
   } catch (error) {
     console.error('Error creating AI agent:', error.response?.data);
+    throw error;
+  }
+};
+
+export const updateAIAgent = async (agentId, role, description, avatar) => {
+  try {
+    const payload = { role, description };
+
+    if (avatar && avatar.startsWith('file://')) {
+      const filename = avatar.split('/').pop();
+      const ext = /\.(\w+)$/.exec(filename);
+      const base64 = await FileSystem.readAsStringAsync(avatar, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      payload.avatar_base64 = base64;
+      payload.avatar_filename = filename || 'avatar.jpg';
+      payload.avatar_mimetype = ext ? `image/${ext[1].toLowerCase()}` : 'image/jpeg';
+    }
+
+    const response = await api.patch(`/ai-agents/${agentId}/update/`, payload);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating AI agent:', error.response?.data);
+    throw error;
+  }
+};
+
+export const deleteAIAgent = async (agentId) => {
+  try {
+    const response = await api.delete(`/ai-agents/${agentId}/delete/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting AI agent:', error.response?.data);
     throw error;
   }
 };

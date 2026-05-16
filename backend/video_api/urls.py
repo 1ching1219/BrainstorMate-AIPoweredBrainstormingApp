@@ -20,6 +20,8 @@ urlpatterns = [
     path('test-media/', views.test_media_files, name='test-media'),
     path('test-upload/', views.test_upload, name='test-upload'),
     path('save-ai-base64/', views.save_ai_partner_base64, name='save-ai-base64'),
+    path('ai-agents/<int:agent_id>/update/', views.update_ai_agent, name='update-ai-agent'),
+    path('ai-agents/<int:agent_id>/delete/', views.delete_ai_agent, name='delete-ai-agent'),
     
     # AI response operations
     path('rooms/<str:room_id>/ai_respond/', views.ai_respond, name='ai_respond'),

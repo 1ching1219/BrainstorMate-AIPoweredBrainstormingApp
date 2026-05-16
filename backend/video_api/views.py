@@ -272,6 +272,66 @@ def save_ai_partner(request):
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+def _delete_avatar_file(ai_agent):
+    """Delete the avatar file from storage if one exists."""
+    if ai_agent.avatar:
+        storage = ai_agent.avatar.storage
+        name = ai_agent.avatar.name
+        try:
+            if storage.exists(name):
+                storage.delete(name)
+        except Exception as e:
+            print(f"Warning: could not delete avatar file '{name}': {e}")
+
+
+@api_view(['PATCH'])
+def update_ai_agent(request, agent_id):
+    """Update an existing AI agent's role, description, and optionally avatar."""
+    try:
+        ai_agent = AIAgent.objects.get(id=agent_id)
+    except AIAgent.DoesNotExist:
+        return Response({'error': 'AI agent not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    role = request.data.get('role')
+    description = request.data.get('description')
+    avatar_base64 = request.data.get('avatar_base64')
+    avatar_filename = request.data.get('avatar_filename', 'avatar.jpg')
+
+    if role:
+        ai_agent.role = role
+    if description:
+        ai_agent.description = description
+    if avatar_base64:
+        try:
+            image_data = base64.b64decode(avatar_base64)
+            _delete_avatar_file(ai_agent)  # remove old file before replacing
+            ai_agent.avatar = ContentFile(image_data, name=avatar_filename)
+        except Exception as e:
+            return Response({'error': f'Invalid avatar data: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    ai_agent.save()
+    return Response({
+        'success': True,
+        'id': ai_agent.id,
+        'role': ai_agent.role,
+        'description': ai_agent.description,
+        'avatar_url': ai_agent.avatar.url if ai_agent.avatar else None,
+    })
+
+
+@api_view(['DELETE'])
+def delete_ai_agent(request, agent_id):
+    """Delete an AI agent and its uploaded avatar file."""
+    try:
+        ai_agent = AIAgent.objects.get(id=agent_id)
+    except AIAgent.DoesNotExist:
+        return Response({'error': 'AI agent not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    _delete_avatar_file(ai_agent)
+    ai_agent.delete()
+    return Response({'success': True}, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 def save_ai_partner_base64(request):
     """Save AI partner with base64 image data"""
